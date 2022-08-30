@@ -1,0 +1,677 @@
+body {
+	margin : 0px;
+	width: 100%;
+    height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+#page, #play {
+	top: 0px;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+	position: absolute;
+    overflow: hidden;
+    background-color: black;
+    min-width: 720px;
+    text-align: center;
+    vertical-align: middle;
+	display: table-cell
+}
+
+#embedInfo {
+    top: 15px;
+	right: 45px;
+	position: absolute;
+}
+
+#play, #embedInfo {
+    display: none;
+}
+
+.sectiondiv {
+    width: auto;
+}
+
+button {
+    height: 22px;
+    width: 32px;
+    cursor: pointer;
+    background-color: black;
+    border-radius: 6px;
+}
+
+.navbut {
+    vertical-align:top;
+    height: 22px;
+    width: 26px;
+    padding: 2px;
+    margin-top: 2px;
+    cursor: pointer;
+    background-color: black;
+    border-radius: 4px;
+}
+
+.navbut:disabled {
+    background-color: blue;
+}
+
+.navbut:disabled img {
+    opacity: 0.2;
+}
+
+label, select {
+    margin: 0px;
+}
+
+/*input[type="checkbox"] {
+   height: 14px;
+}*/
+
+input[type="text"] {
+    height: 16px;
+    background-color: black;
+    color: white;
+    border-radius: 6px;
+}
+
+textarea {
+    background-color: black;
+    color: white;
+    border-radius: 6px;
+}
+
+select {
+    height: 22px;
+    background-color: black;
+    color: white;
+    border-radius: 6px;
+    font-size: 80%;
+}
+/*
+#gmenuselect {
+    height: 22px;
+    vertical-align:top;
+    margin-top: 3px;;
+}
+*/
+.menuselect {
+    width: 160px;
+}
+
+#menu1, #menu2, #launch, #controls, #status, #options {
+    left: 50%;
+    width: 1080px;
+    margin-left: -540px;
+	position: absolute;
+}
+
+#menu1 {
+    top: 0px;
+}
+
+.menu1div, .menu2div, .menu1idiv, .menu2fdiv {
+    border-radius: 6px;
+    float: left;
+    height: 24px;
+    margin-left: 6px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    padding-top: 2px;
+    background-color: rgb(6,79,187);
+    color: white;
+}
+
+.menu1div, .menu2div {
+    width: 130px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.menu1idiv {
+    width: 260px;
+}
+
+.menu2fdiv {
+    width: 208px;
+}
+
+.statusdiv {
+    border-radius: 6px;
+    float: left;
+    width: 345px;
+    height: 20px;
+    margin: 6px;
+    text-align: center;
+    background-color: rgb(6,79,187);
+    color: white;
+}
+
+.queryrow {
+    width : 100%;
+    float: left;
+}
+
+.querytext {
+    resize: none;
+    width: 95%;
+    height: 85%;
+    font-size: 80%;
+}
+.statsrow {
+    width : 100%;
+    font-size: 90%;
+    float: left;
+}
+
+.channelrow {
+    width: 100%;
+    float: left;
+}
+.metarow {
+    width : 100%;
+    font-size: 90%;
+    float: left;
+}
+
+.optionsrow {
+    width : 100%;
+    font-size: 90%;
+    float: left;
+}
+
+#menu2, #launch, #controls  {
+    display: none;
+}
+
+.controlrow {
+    width: 100%;
+    height: 28px;
+    float: left;
+}
+
+#launchdiv {
+    border-radius: 6px;
+    float: left;
+    margin: 6px;
+    text-align: center;
+    color: white;
+    background-color: rgb(6,79,187);
+}
+
+#controldiv {
+    width: 1060px;
+    padding: 2px;
+    border-radius: 6px;
+    float: left;
+    margin: 6px;
+    text-align: center;
+    background-color: rgb(6,79,187);
+    color: white;
+}
+
+#options {
+    display: none;
+    position: absolute;
+}
+
+.optiondiv {
+    border-radius: 6px;
+    float: left;
+    width: 345px;
+    height: 24px;
+    margin: 6px;
+    text-align: center;
+    background-color: white;
+    padding-top: 2px;
+}
+
+#content {
+    bottom: 32px;
+	position: absolute;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: gray black;
+    display: block;
+}
+
+#embed {
+	bottom: 32px;
+	position: absolute;
+    overflow: hidden;
+    display: none;
+}
+
+.titlediv {
+    width : 100%;
+    overflow-y : auto;
+    overflow-x : hidden;
+    scrollbar-width: thin;
+    scrollbar-color: gray black;
+    font-size: 70%;
+}
+
+#content::-webkit-scrollbar,
+.titlediv::-webkit-scrollbar {
+    width: 10px;
+}
+
+#content::-webkit-scrollbar-track,
+.titlediv::-webkit-scrollbar-track {
+    background: black;
+}
+
+#content::-webkit-scrollbar-thumb,
+.titlediv::-webkit-scrollbar-thumb {
+    background-color: gray;
+    border-radius: 10px;
+    border: 2px solid black;
+}
+
+#status {
+	bottom: 0px;
+    height: 32px;
+}
+
+.selected {
+    background-color: tomato;
+}
+
+table {
+    width: 100%;
+    height: 100%;
+    border-spacing: 0px;
+}
+
+td {
+    padding: 2px;
+}
+
+.error {
+	position:absolute;
+	width: 256px;
+	height: 60px;
+	top: 50%;
+	left: 50%;
+	margin-top: -30px;
+	margin-left: -128px;
+	border-radius: 16px;
+	padding: 12px;
+    color: white;
+	background-color : red;
+}
+
+.video {
+    float: left;
+    position: relative;
+    color: rgb(255,191,127);
+}
+
+.search {
+    float: left;
+    position: relative;
+    color:rgb(127, 191, 255);
+}
+
+.channel {
+    float: left;
+    position: relative;
+    color: rgb(127,255,191);
+}
+
+.topic {
+    float: left;
+    position: relative;
+    color: rgb(191,127,255);
+}
+
+.progressdiv {
+    height: 100%;
+    width: 0%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    bottom: 0px;
+    background-color: green;
+    opacity: 0.5;
+}
+
+.outerdiv {
+    width: 100%;
+    height: 0px;
+    padding-top: 100%;
+    float: left;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    background-color: black;
+    cursor: pointer;
+}
+
+.innerdiv {
+    position: absolute;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.rotate0 {
+    position: absolute;
+}
+
+.static0 {
+    position: absolute;
+    left: 0px;
+    width: 100%;
+}
+
+.rvideo0 {
+    position: relative;
+    pointer-events: none;
+}
+
+.rembed0 {
+    position: relative;
+}
+
+.rotate1 {
+    position: absolute;
+    transform: rotate(270deg);
+}
+
+.rvideo1 {
+    transform: rotate(270deg);
+    pointer-events: none;
+}
+
+.rembed1 {
+    transform: rotate(270deg);
+}
+
+.static1 {
+    position: absolute;
+    transform: rotate(270deg);
+    left: 0px;
+    width: 100%;
+}
+
+.rotate2 {
+    position: absolute;
+    transform: rotate(180deg);
+}
+
+.rembed2 {
+    transform: rotate(180deg);
+}
+
+.static2 {
+    position: absolute;
+    transform: rotate(180deg);
+    left: 0px;
+    width: 100%;
+}
+
+.rvideo2 {
+    transform: rotate(180deg);
+    pointer-events: none;
+}
+
+.rotate3 {
+    position: absolute;
+    transform: rotate(90deg);
+}
+
+.static3 {
+    position: absolute;
+    transform: rotate(90deg);
+    left: 0px;
+    width: 100%;
+}
+
+.rvideo3 {
+    transform: rotate(90deg);
+    pointer-events: none;
+}
+
+.rembed3 {
+    transform: rotate(90deg);
+    pointer-events: none;
+}
+
+.channeldiv {
+    position: relative;
+    cursor: pointer;
+}
+
+.divdiv {
+    position: absolute;
+    opacity: 0.3;
+}
+
+.altdiv {
+    position: absolute;
+    opacity: 0.7;
+}
+
+.nextdiv {
+    bottom: 9%;
+    right: 1%;
+}
+
+.prevdiv {
+    bottom: 9%;
+    left: 1%;
+}
+
+.chandiv, .unchandiv {
+    top: 1%;
+    left: 1%;
+}
+
+.queuediv, .unqueuediv {
+    top: 1%;
+    left: 9%;
+}
+
+.blockdiv {
+    left: 27%;
+    top: 1%;
+}
+
+.searchdiv {
+    left: 35%;
+    top: 1%;
+}
+
+.scandiv {
+    left: 43%;
+    top: 1%;
+}
+
+.updatediv {
+    right: 43%;
+    top: 1%;
+}
+
+.likediv {
+    right: 35%;
+    top: 1%;
+}
+
+.followdiv {
+    right: 27%;
+    top: 1%;
+}
+
+.discarddiv {
+    right: 1%;
+    top: 1%;
+}
+
+.exitplaydiv {
+    top: 10px;
+    right: 10px;
+}
+
+.embedinfodiv {
+    top: 50px;
+    right: 10px;
+}
+
+.codecdiv {
+    right: 10px;
+}
+
+.rotatediv {
+    left: 1%;
+    bottom: 1%;
+}
+
+.refreshdiv {
+    bottom: 1%;
+    left: 9%;
+}
+
+.showinfodiv {
+    bottom: 1%;
+    left: 35%;
+}
+
+.showimagediv {
+    bottom: 1%;
+    left: 43%;
+}
+
+.playstorydiv {
+    bottom: 1%;
+    right: 43%;
+}
+
+.playvideodiv {
+    bottom: 1%;
+    right: 35%;
+}
+
+.downloaddiv, .canceldiv, .exportdiv {
+    right: 1%;
+    bottom: 1%;
+}
+
+.erasediv, .stopdldiv {
+    right: 9%;
+    bottom: 1%;
+}
+
+.divdiv:hover, .altdiv:hover {
+    opacity: 1;
+}
+
+.viewsdiv {
+    display: inline;
+    font-size: 75%;
+}
+
+.lcell {
+    float: left;
+    overflow: hidden;
+    text-align: left;
+}
+
+.ccell {
+    float: left;
+    overflow: hidden;
+    text-align: center;
+}
+
+.rcell {
+    float: right;
+    overflow: hidden;
+    text-align: right;
+}
+
+.download {
+    background-color: rgb(127,0,127);
+}
+
+.embedframe {
+    position: absolute;
+    width: 96%;
+    height: 96%;
+    top: 2%;
+    left: 2%;
+}
+
+.topicname, .searchname {
+    width: 100%;
+    height: 85%;
+    font-size: 80%
+}
+
+.checklist {
+    display: none;
+    border: 1px #dadada solid;
+    position: relative;
+    background-color: black;
+    color: white;
+    z-index: 5;
+}
+
+.checklistbox {
+    display: block;
+}
+
+.autoselect {
+    width: 100%;
+    color: white;
+    font-size: 80%;
+}
+
+.disallowed {
+    resize: none;
+    width: 100%;
+    font-size: 80%;
+}
+
+.eyeimg {
+    width: 80%;
+}
+
+.trackdiv {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    height: 1px;
+    width: 0px;
+    background-color: red
+}
+
+.authordiv {
+    width: 100%;
+    word-wrap: break-word;
+}
+
+.contentdiv {
+    height: 100%;
+    width: 100%;
+}
+
+.menutagdiv {
+    cursor: pointer;
+    text-align: right;
+    width: 90px;
+    display: inline-block;
+}
+
+.filterdiv {
+    cursor: pointer;
+    text-align: right;
+    width: 60px;
+    display: inline-block;
+}
+
+.filtermenu {
+    width: 140px;
+}
+
+#ascdesc {
+    width: 5%;
+}
