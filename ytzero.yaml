@@ -1,0 +1,1643 @@
+# ytzero configuration file
+# it is not recommended that you uncomment and change any settings that are commented out
+# global server engine settings
+engine:
+  # site is the ip address of the ytzero server (typically localhost, but can also be a remote server)
+  site: http://127.0.0.1
+  # port is the port number of the nodejs ytzero server
+  port: 3164
+  # cookie is a youtube cookie string of your logged in YouTube session, not required
+  cookie: VISITOR_INFO1_LIVE=AH99S8WSMH0; HSID=AP2c2wCQRuusVxMHV; SSID=AZcHCpmEKKn4ox5-G; APISID=YBjpDR8rzV6BVmHV/AfX7_CqzsJyF4120W; SAPISID=P81q-FV7EtlxYpTQ/ANhyGI5k3cHcg3kQf; __Secure-1PAPISID=P81q-FV7EtlxYpTQ/ANhyGI5k3cHcg3kQf; __Secure-3PAPISID=P81q-FV7EtlxYpTQ/ANhyGI5k3cHcg3kQf; PREF=tz=Africa.Johannesburg&hl=en&f5=30000&f6=400&f4=4000000; LOGIN_INFO=AFmmF2swRAIgImyc40UvhkJynll9A6guDnmSSh9VFYBZyqXIgROLDb0CIFLWZNG1rRbKDtLE_RlTEpWhZ_2U6NWRzc2K-ACFUddp:QUQ3MjNmeUw2bUd0b3BGZGRITDBkc0xoZjRvb1ktM3l0QS1BcHFZRUpGQUNjYWRNcmlfelk0WW5idHVldlZBWmNxalVxZjc3OUR2d3lldXBRWHRQUndhN2lDMXhXaHFPZUZaNHNfQm4xV3A1aHNyM2xPeWo3VENlWVlnbHRoTlRfb3YtTmJzNXF3clc2V3BrdHEzeVpkTTYtdWpZcXNObGhB; SID=KAgX1j6g6F-UEFxqcnPJVSNSyfhlcFXNzbZ1ISL45ujJCUH4BI14dIYpqe9F2NsJY0I7oA.; __Secure-1PSID=KAgX1j6g6F-UEFxqcnPJVSNSyfhlcFXNzbZ1ISL45ujJCUH4p39_Eqv7t0F0SQWAxkIWkQ.; __Secure-3PSID=KAgX1j6g6F-UEFxqcnPJVSNSyfhlcFXNzbZ1ISL45ujJCUH46w-iauTSUFpL7xRk_6S7JA.; YSC=wNTO5s_pLSQ; SIDCC=AJi4QfFhcK2mRe5657hFVBndjRM3ODI8cQyfQuPeiF6bZvQvOTWsNId4bTwcn0S8XgUtfMEDdrym; __Secure-3PSIDCC=AJi4QfG8QF3eK0hFU8cKq1nN0JDlqH1syFQnxI3PiQu4c31yFaND32b6M93jEWD1k-DahQm2zfQ
+  # agent is a browser agent string, not required.
+  agent: ""
+  # proxy is a "protocol://xxx.xxx.xxx.xxx:port" style proxy string. If left empty no proxy is applied.
+  proxy: ""
+  # if a proxy is applied, proxyify all non-browser https requests ("ON") or limit to specific searches ("OFF")
+  proxifyAll: OFF
+  # fallback is a "http://xxx.xxx.xxx.xxx:port" address of another (logged-in) instance of ytzero that will
+  # handle video information requests that require age verification or being logged-in.
+  # this is not needed if a logged-in cookie is provided in the current instance
+  fallback: ""
+  # youtube video categories
+  categories:
+    - Film & Animation
+    - Autos & Vehicles
+    - Music
+    - Pets & Animals
+    - Sports
+    - Travel & Events
+    - Gaming
+    - People & Blogs
+    - Comedy
+    - Entertainment
+    - News & Politics
+    - Howto & Style
+    - Education
+    - Science & Technology
+    - Nonprofits & Activism
+# advanced engine settings that control internal data dynamics, updates and data maintenance
+advanced:
+  # "ON" to run database in memory - can increase speed, reduce disk access, at cost of potential data loss.
+  # "OFF" to run database on disc. No potential data loss.
+  memoryMode: "OFF"
+  # When in memory mode, periodically back up data to disk every x minutes (also backs up on exit)
+  memoryBackupMinutes: 15
+  # maximum results from a channel scan or channel backfill request
+  maxChannelResults: 900
+  # maximum results from a search scan
+  maxSearchResults: 5000
+  # videos are included if they are published in the past publishedLimitDays (real)
+  publishedLimitDays: 1
+  # channel scans return videos if they published after the current date less searchAfterHours
+  searchAfterHours: 36
+  # channel levels determine how channels and new search videos are handled
+  # block level: profiled once, not updated, new search results blocked, videos discarded
+  # blockLevel: 0
+  # search level: profile updated when search results are added
+  # searchLevel: 1
+  # scan level: profile updated and channel scanned for other new videos when search results are added
+  # scanLevel: 2
+  # update level = profile updated and channel scanned regularly with updateFrequency, search results added
+  # updateLevel: 3
+  updateFrequency: 1
+  # like level = same as updateLevel but with likeFrequency
+  # likeLevel: 4
+  likeFrequency: 2
+  # follow level = same as updateLevel but with followFrequency - new videos are automatically queued
+  # followLevel: 5
+  followFrequency: 4
+  # channel videos are not subject to filters if the channel level is equal to or greater than
+  unfilteredLevel: 4
+  # ytzero uses the ytcog library with the following video/download settings
+  videoPath: ./client/dl
+  videoContainer: mkv
+  videoQuality: highest
+  audioQuality: highest
+  mediaBitrate: highest
+  videoFilename: ${author}_${datetime}_${title}_${id}_${videoQuality}_${videoCodec}_${audioCodec}
+  videoMetadata: ""
+  videoOverwrite: "no"
+  videoSubtitles: none
+  videoSubtitleFormat: srt
+  # newly published videos often have only poor quality video while higher formats are still being processed
+  # in ytzero videos are periodically rescanned every upgradeCycleMinutes (real) until the quality improves
+  upgradeCycleMinutes: 25
+  # or until upgradeLimitHours (real) has elapsed
+  upgradeLimitHours: 2
+  # highQuality (integer) is the quality level at which these upgrade rescans are deemed unecessary.
+  # typically one of 144, 240, 360, 480, 720, 1080, 2160
+  highQuality: 720
+  # when video filtering is applied, you can discard videos with excessive (spammy) description lengths
+  # 0 allows all. Any positive integer discards video with decription lengths above this value (integer)
+  maxDescriptionLength: 256
+  # some newly published videos have no media or streams (backlog on YT servers),
+  # ytzero will rescan again on the next video cycle up to mediaLimitMinutes (real):
+  mediaLimitMinutes: 30
+  # videos will continue to be periodically updated (every 5.5 hours) until updateLimitHours publishing (real)
+  updateLimitHours: 18.7
+  # Searches are periodically executed. The maximum number of searches per cycle (integer) is
+  maxSearches: 100
+  # past hour search cycles occur every hourCycleMinutes (real)
+  hourCycleMinutes: 1
+  # past day search cycles occur every dayCycleMinutes (real)
+  dayCycleMinutes: 3
+  # channel scan cycles occur every channelCycleMinutes (real)
+  channelCycleMinutes: 1
+  # channel scans are periodically executed. The maximum number of channel scans per cycle (integer) is
+  maxChannelScans: 4000
+  # maximum number of channels that can be deleted in single channel update cycle
+  maxChannelDelete: 10000
+  # video info scans are periodically executed. The maximum number of video scans per cycle (integer) is
+  maxVideoScans: 4000
+  # maximum number of videos that can be deleted in a single video update cycle.
+  maxVideoDelete: 10000
+  # update level upwards every (profileCycle)th channel update will also include a channel profile update
+  # so if profileCycle = 6 this means the channel profile gets updated on every 6th channel scan
+  profileCycle: 6
+  # video update cycles occur every videoCycleMinutes (real)
+  videoCycleMinutes: 1
+  # individual video updates occur every updateCycleMinutes (real)
+  # note that YT video streams currently expire after 350 minutes.
+  updateCycleMinutes: 325
+  # pending automated downloads should commence downloading autoDownloadMinutes (real) before the streams expire
+  autoDownloadMinutes: 25
+  # popularity represents video veiws over time. popularityHours (real) is the time unit that applies
+  # so if popularityHours = 1, popularity represent est views per hour
+  # if popularityHours = 24, popularity represents est views per day
+  popularityHours: 1
+  # all search/channel/video info requests are
+  # staggered requests over the first cycleStaggerLength ( 0 < real < 1) portion of the update cycle.
+  cycleStaggerLength: 0.80
+  # if requests are incomplete at the end of a cycle, cycleWaitLength is the maximum proportion
+  # of a cycle to wait for completion. After this limit is reached the next cycle will commence even
+  # if there are still outstanding requests.
+  cycleWaitLength: 0.5
+  # number of days after publishing when discarded videos are automatically purged
+  videoPurgeDays: 2
+  # number of days after a channel's last publishing video that a channel is automatically purged
+  # note blocked channels are not purged to avoid them reappearing in your results.
+  # if you do wish to purge blocked channels it can be done manually via the browser interface
+  searchPurgeDays: 3
+  scanPurgeDays: 3
+  updatePurgeDays: 3
+  likePurgeDays: 10
+  followPurgeDays: 30
+  # automatically discard videos discoveryDiscardDays (real) after discovery
+  # discarded videos will still show up in channel and entry modes until purged
+  discoveryDiscardDays: 1
+  # channelUpdateMultiplier (real) allows proportional increase/decrease in the frequency of channel updates.
+  channelFrequencyMultiplier: 1
+  # at frequency 1, minimum update period since last published video
+  minAdaptiveMinutes: 10
+  # at frequecy 1, per band update period given time elapsed since last published video
+  band1ElapsedHours: 1
+  band1AdaptiveMinutes: 15
+  band2ElapsedHours: 3
+  band2AdaptiveMinutes: 30
+  band3ElapsedHours: 6
+  band3AdaptiveMinutes: 45
+  band4ElapsedHours: 12
+  band4AdaptiveMinutes: 60
+  band5ElapsedHours: 24
+  band5AdaptiveMinutes: 120
+  band6ElapsedHours: 48
+  band6AdaptiveMinutes: 180
+  band7ElapsedHours: 120
+  band7AdaptiveMinutes: 360
+  band8ElapsedHours: 240
+  band8AdaptiveMinutes: 720
+  # at frequency 1, maximum update period since last published video
+  maxAdaptiveMinutes: 1440
+  # searchUpdateMultiplier (real) allows proportional increase/decrease in the frequency of search updates.
+  searchFrequencyMultiplier: 1
+  # at frequency 1, minimum elapsed and update period since last found video
+  minElapsedMinutes: 10
+  minSearchMinutes: 3
+  # at frequency 1, maximum elapsed and update period since last found video
+  maxElapsedMinutes: 1440
+  maxSearchMinutes: 480
+  # at frequency 1 and within minElapsedMinutes and maxElapsedMinutes
+  # updates occur at searchRatio x ElapsedMinutes since last found video
+  searchRatio: 0.3
+# general item display settings
+item:
+  # padding: 3
+  # margin: 2
+  # radius: 8
+  # space: 2
+  # controlHeight: 22
+  # buttonWidth: 32
+  # width: 256
+  # item panel color for pending downloads
+  pendingRGB: rgb(0,0,127)
+  # item panel color for in-progress downloads
+  downloadRGB: rgb(63,63,0)
+  #buttonField: 13
+  #button2Field: 16.6666
+  #button2Scale: 1.3333
+# topic item settings
+topic:
+  # seconds since last published video when a topic is considered old
+  old: 86400
+  # color settings for a fresh topic (with recently published video)
+  red: 63
+  green: 0
+  blue: 127
+  # duration list for minimum and maximum topic duration settings
+  durations:
+    - 0
+    - 2
+    - 3
+    - 5
+    - 7
+    - 10
+    - 13
+    - 15
+    - 17
+    - 20
+    - 25
+    - 30
+    - 45
+    - 60
+    - 90
+    - 120
+    - 180
+    - 300
+    - 600
+    - 900
+    - 1200
+    - 1800
+    - 2700
+    - 3600
+    - 5400
+    - 7200
+    - 10800
+  # minNameLength: 2
+  # maxNameLength: 16
+  # nameLabel: 20
+  # nameField: 80
+  # minDurLabel: 11
+  # minDurField: 27
+  # maxDurLabel: 12
+  # maxDurField: 27
+  # categoryField: 100
+  # banField: 100
+  # autoLabel: 10
+  # autoActionField: 40
+  # autoConditionField: 50
+  # maxAuto: 4
+  # textHeight: 0.1
+  # statHeight: 0.08
+  # categoryHeight: 0.43
+  # banHeight: 0.2
+  # optionHeight: 0.1
+  controlHeight: 0.08
+  # updateHeight: 0.09
+  # imageHeight: 0.0625
+  statusHint: topic status filter
+  timeHint: topic time filter
+  # topic list sort/filters have access to the following topic fields:
+  # topic.id - autoincrement integer
+  # topic.name - name of topic
+  # topic.status - ON, OFF
+  # having.searchCount - number of searches
+  # having.channelCount - number of channels
+  # having.newVideos - number of non-discarded videos
+  # having.videoCount - number of videos
+  # latest - last published video timestamp
+  # status filter options and corresponding SQL snippets
+  statusList:
+    - tag: all
+      sql: ""
+    - tag: updates on
+      sql: topic.status = "ON"
+    - tag: updates off
+      sql: topic.status = "OFF"
+  # time filter descriptions and corresponding SQL snippets
+  timeList:
+    - tag: any
+      sql: ""
+    - tag: latest <5m
+      sql: now() - latest < minutes(5)
+    - tag: latest <10m
+      sql: now() - latest < minutes(10)
+    - tag: latest <15m
+      sql: now() - latest < minutes(15)
+    - tag: latest <30m
+      sql: now() - latest < minutes(30)
+    - tag: latest <1h
+      sql: now() - latest < hours(1)
+    - tag: latest >1h
+      sql: now() - latest >= hours(1)
+  # sort options and corresponding SQL snippets for ascending order
+  # note, for descending order, all ASC and DESC are simply swapped.
+  # field is the field descriptor for displayed sort values
+  # format is either:
+  # age (time since an event),
+  # length (duration),
+  # quantity (a number with compact formatting)
+  # none (leave value as it is) or
+  # a number representing the maximum number of characters to display (text)
+  sortList:
+    - tag: name
+      sql: topic.name ASC
+      field: name
+      format: 12
+    - tag: latest
+      sql: latest ASC
+      field: latest
+      format: age
+    - tag: new
+      sql: newVideos ASC
+      field: newVideos
+      format: quantity
+    - tag: videos
+      sql: videoCount ASC
+      field: videoCount
+      format: quantity
+    - tag: channels
+      sql: channelCount ASC
+      field: channelCount
+      format: quantity
+    - tag: searches
+      sql: searchCount ASC
+      field: searchCount
+      format: quantity
+# search item settings
+search:
+  # seconds since last published video when a search is considered old
+  old: 86400
+  # color settings for a fresh search (with recently published video)
+  red: 0
+  green: 63
+  blue: 127
+  # textHeight: 0.1000
+  # queryHeight: 0.16
+  # statHeight: 0.085
+  # optionHeight: 0.09
+  # updateHeight: 0.09
+  # imageHeight: 0.0625
+  # newLabel: 15
+  newField: 55
+  channelsLabel: 27
+  channelsField: 25
+  # nameLabel: 20
+  # nameField: 80
+  # proxyLabel: 20
+  # proxyField: 27
+  # topicLabel: 15
+  topicField: 50
+  # minNameLength: 2
+  # maxNameLength: 16
+  # queryInputLength: 40
+  statusHint: search status filter
+  timeHint: search time filter
+  # search list sorts/filters have access to the following fields:
+  # topic.id - autoincrement integer id
+  # topic.name - name of topic
+  # topic.status - ON, OFF
+  # search.id - autoincrement integer id
+  # search.name - name of search
+  # search.topic - same as topic.id
+  # search.updates - ON, OFF
+  # search.proxify - YES, NO
+  # search.auto - block, scan, update, like, queue
+  # search.updatedHour - hour search update timestamp
+  # search.updatedDay - day search update timestamp
+  # search.latestHour - hour search latest video published timestamp
+  # search.latestDay - day search latest video published timestamp
+  # search.status - OK, NOK
+  # topicName - same as topic.name
+  # having.newVideos - number of non-discarded videos
+  # having.videoCount - total number of videos
+  # latest - latest search result timestamp
+  # updated - search update timestamp
+  # status filter options and corresponding SQL snippets
+  statusList:
+    - tag: any
+      sql: ""
+    - tag: ok
+      sql: search.status = 'OK'
+    - tag: not ok
+      sql: search.status = 'NOK'
+    - tag: updates on
+      sql: (topic.status = 'ON' AND search.updates = 'ON')
+    - tag: updates off
+      sql: (topic.status = 'OFF' OR search.updates = 'OFF')
+  # time filter descriptions and corresponding SQL snippets
+  timeList:
+    - tag: any
+      sql: ""
+    - tag: latest <5m
+      sql: now() - latest < minutes(5)
+    - tag: latest <10m
+      sql: now() - latest < minutes(10)
+    - tag: latest <15m
+      sql: now() - latest < minutes(15)
+    - tag: latest <30m
+      sql: now() - latest < minutes(30)
+    - tag: latest <1h
+      sql: now() - latest < hours(1)
+    - tag: latest >=1h
+      sql: now() - latest >= hours(1)
+    - tag: updated <15m
+      sql: now() - updated < minutes(15)
+    - tag: updated <30m
+      sql: now() - updated < minutes(30)
+    - tag: updated <1h
+      sql: now() - updated < hours(1)
+    - tag: updated <6h
+      sql: now() - updated < hours(6)
+    - tag: updated >=6h
+      sql: now() - updated >= hours(6)
+  # sort options and corresponding SQL snippets for ascending order
+  # note, for descending order, all ASC and DESC are simply swapped.
+  # field is the field descriptor for displayed sort values
+  # format is either:
+  # age (time since an event),
+  # length (duration),
+  # quantity (a number with compact formatting)
+  # none (leave value as it is) or
+  # a number representing the maximum number of characters to display (text)
+  sortList:
+    - tag: name
+      sql: search.name ASC
+      field: name
+      format: 12
+    - tag: query
+      sql: meta(search.data,'query') ASC
+      field: meta.query
+      format: 12
+    - tag: latest
+      sql: latest ASC
+      field: latest
+      format: age
+    - tag: new
+      sql: newVideos ASC
+      field: newVideos
+      format: quantity
+    - tag: videos
+      sql: videoCount ASC
+      field: videoCount
+      format: quantity
+    - tag: channels
+      sql: channelCount ASC
+      field: channelCount
+      format: quantity
+    - tag: updated
+      sql: updated ASC
+      field: updated
+      format: age
+  # default channel level for new searches (can be changed individually when new searches are created)
+  defaultChannelLevel: update
+# channel item settings
+channel:
+  # seconds since last published video when a channel is considered old
+  old: 259200
+  # color settings for a fresh channel (with recently published video)
+  red: 0
+  green: 127
+  blue: 63
+  # statHeight: 0.07
+  # chanHeight: 0.28125
+  # optionHeight: 0.1
+  # updateHeight: 0.1
+  # imageHeight: 0.0625
+  # flagPadding: 2
+  # thumbGap: 4
+  # avatarField: 100
+  # lastLabel: 20
+  # subsField: 20
+  # viewsLabel: 15
+  # viewsField: 15
+  # url: https://www.youtube.com/channel
+  # levels:
+  #   - block
+  #   - search
+  #   - scan
+  #   - update
+  #   - like
+  #   - follow
+  statusHint: channel status filter
+  timeHint: channel time filter
+  viewHint: channel view filter
+  # channel list sort/filters have access to the following fields:
+  # topic.id - autoincrement integer id
+  # topic.name - name of topic
+  # topic.status - ON, OFF
+  # search.id - autoincrement integer id
+  # search.name - name of search
+  # search.topic - same as topic.id
+  # search.updates - ON, OFF
+  # search.proxify - YES, NO
+  # search.auto - block, scan, update, like, queue
+  # search.updatedHour - hour search update timestamp
+  # search.updatedDay - day search update timestamp
+  # search.latestHour - hour search latest video published timestamp
+  # search.latestDay - day search latest video published timestamp
+  # search.status - OK, NOK
+  # channel.id - 24 character YT channel id
+  # channel.search - 24 character YT channel id
+  # channel.views - views for all channel video (for all time)
+  # channel.subscribers - number of channel subscribers
+  # channel.joined - timestamp of date channel author joined YT
+  # channel.updated - timestamp of last channel update
+  # channel.latest - timestamp of last video published time
+  # channel.queue - 0 blocked, 1 scanned, 2 updated, 3 liked, 4 queued
+  # channel.status - OK, NOK, CDL - channel deleted, CRM - channel removed, CNA - channel not available
+  # topicName - same as topic.name
+  # searchName - same as search.name
+  # having.newVideos - number of non-discarded channel videos
+  # having.videoCount - total number of undeleted channel videos
+  # status filter options and corresponding SQL snippets
+  statusList:
+    - tag: any
+      sql: ""
+    - tag: followed
+      sql: channel.level = 5
+    - tag: not followed
+      sql: channel.level < 5
+    - tag: liked+
+      sql: channel.level >= 4
+    - tag: liked
+      sql: channel.level = 4
+    - tag: liked-
+      sql: channel.level <= 4
+    - tag: not liked
+      sql: channel.level != 4
+    - tag: updated+
+      sql: channel.level >= 3
+    - tag: updated
+      sql: channel.level = 3
+    - tag: updated-
+      sql: channel.level <= 3
+    - tag: not updated
+      sql: channel.level != 3
+    - tag: scanned+
+      sql: channel.level >= 2
+    - tag: scanned
+      sql: channel.level = 2
+    - tag: scanned-
+      sql: channel.level <= 2
+    - tag: not scanned
+      sql: channel.level != 2
+    - tag: searched+
+      sql: channel.level >= 1
+    - tag: searched
+      sql: channel.level = 1
+    - tag: searched-
+      sql: channel.level <= 1
+    - tag: not searched
+      sql: channel.level != 1
+    - tag: blocked
+      sql: channel.level = 0
+    - tag: not blocked
+      sql: channel.level != 0
+    - tag: online
+      sql: channel.status IN ('OK','NOK')
+    - tag: offline
+      sql: channel.status IN ('CDL','CTM','CNA')
+    - tag: deleted
+      sql: channel.status = 'CDL'
+    - tag: removed
+      sql: channel.status = 'CTM'
+    - tag: unavailable
+      sql: channel.status = 'CNA'
+    - tag: updates on
+      sql: topic.status = 'ON'
+    - tag: updates off
+      sql: topic.status = 'OFF'
+    - tag: ok
+      sql: channel.status = 'OK'
+    - tag: not ok
+      sql: channel.status = 'NOK'
+  # time filter descriptions and corresponding SQL snippets
+  timeList:
+    - tag: any
+      sql: ""
+    - tag: latest <5m
+      sql: now() - channel.latest < minutes(5)
+    - tag: latest <10m
+      sql: now() - channel.latest < minutes(10)
+    - tag: latest <15m
+      sql: now() - channel.latest < minutes(15)
+    - tag: latest <30m
+      sql: now() - channel.latest < minutes(30)
+    - tag: latest <1h
+      sql: now() - channel.latest < hours(1)
+    - tag: latest >1h
+      sql: now() - channel.latest >= hours(1)
+    - tag: joined <1d
+      sql: now() - channel.joined < days(1)
+    - tag: joined <2d
+      sql: now() - channel.joined < days(2)
+    - tag: joined <1w
+      sql: now() - channel.joined < days(7)
+    - tag: joined <1m
+      sql: now() - channel.joined < days(30)
+    - tag: joined <1y
+      sql: now() - channel.joined < days(365)
+    - tag: joined >1y
+      sql: now() - channel.joined >= days(365)
+    - tag: updated <15m
+      sql: now() - channel.updated < minutes(15)
+    - tag: updated <30m
+      sql: now() - channel.updated < minutes(30)
+    - tag: updated <1h
+      sql: now() - channel.updated < hours(1)
+    - tag: updated <6h
+      sql: now() - channel.updated < hours(6)
+    - tag: updated >6h
+      sql: now() - channel.updated >= hours(6)
+  # view list filter descriptions and corresponding SQL snippets
+  viewList:
+    - tag: any
+      sql: ""
+    - tag: chan views >=1b
+      sql: channel.views >= 1000000000
+    - tag: chan views >=1m
+      sql: channel.views >= 1000000
+    - tag: chan views >=100k
+      sql: channel.views >= 100000
+    - tag: chan views >=10k
+      sql: channel.views >= 10000
+    - tag: chan views <10k
+      sql: channel.views < 10000
+    - tag: subscribers >=1m
+      sql: channel.subscribers >= 1000000
+    - tag: subscibers >=1k
+      sql: channel.subscribers >= 1000
+    - tag: subscribers >=10
+      sql: channel.subscriber >= 10
+    - tag: subscribers <10
+      sql: channel.subscribers < 10
+    - tag: no new videos
+      sql: having.newVideos = 0
+    - tag: new videos >=1
+      sql: having.newVideos >= 1
+    - tag: new videos >=3
+      sql: having.newVideos >= 3
+    - tag: new videos >=5
+      sql: having.newVideos >= 5
+    - tag: new videos >=10
+      sql: having.newVideos >= 10
+    - tag: new videos >=15
+      sql: having.newVideos >= 15
+    - tag: new videos >=25
+      sql: having.newVideos >= 25
+    - tag: no videos
+      sql: having.videoCount = 0
+    - tag: videos >=1
+      sql: having.videoCount >= 1
+    - tag: videos >=3
+      sql: having.videoCount >= 3
+    - tag: videos >=5
+      sql: having.videoCount >= 5
+    - tag: videos >=10
+      sql: having.videoCount >= 10
+    - tag: videos >=15
+      sql: having.videoCount >= 15
+    - tag: videos >=25
+      sql: having.videoCount >= 25
+  # sort options and corresponding SQL snippets for ascending order
+  # note, for descending order, all ASC and DESC are simply swapped.
+  # field is the field descriptor for displayed sort values
+  # format is either:
+  # age (time since an event),
+  # length (duration),
+  # quantity (a number with compact formatting)
+  # none (leave value as it is) or
+  # a number representing the maximum number of characters to display (text)
+  sortList:
+    - tag: author
+      sql: meta(channel.data,'author') ASC
+      field: meta.author
+      format: 12
+    - tag: views
+      sql: channel.views ASC
+      field: views
+      format: quantity
+    - tag: subscribers
+      sql: channel.subscribers ASC
+      field: subscribers
+      format: quantity
+    - tag: latest
+      sql: channel.latest ASC
+      field: latest
+      format: age
+    - tag: new
+      sql: newVideos ASC
+      field: newVideos
+      format: quantity
+    - tag: videos
+      sql: videoCount ASC
+      field: videoCount
+      format: quantity
+    - tag: updated
+      sql: channel.updated ASC
+      field: updated
+      format: age
+    - tag: joined
+      sql: channel.joined ASC
+      field: joined
+      format: age
+  # in channel mode, client can request older videos via a backfill option
+  backfill:
+    - tag: none
+      days: 0
+    - tag: 1 day
+      days: 1
+    - tag: 2 days
+      days: 2
+    - tag: 3 days
+      days: 3
+    - tag: 5 days
+      days: 5
+    - tag: 1 week
+      days: 7
+    - tag: 2 weeks
+      days: 14
+    - tag: 1 month
+      days: 31
+    - tag: 3 months
+      days: 92
+    - tag: 6 months
+      days: 183
+    - tag: 1 year
+      days: 366
+    - tag: 2 years
+      days: 731
+    - tag: 3 years
+      days: 1096
+    - tag: 5 years
+      days: 1827
+    - tag: all
+      days: 99999
+  # autoActions change the update level of a channel based on a matching condition
+  # posible levels are:
+  #   block
+  #   search
+  #   scan
+  #   update
+  #   like
+  #   follow
+  # conditions are evaluated javascript snippets to match a corresponding auto levels, after each update
+  # examples are provided below. NB if you include a video reference, first test whether video is defined:
+  #   video && video.status === 'VDL'
+  #   channel.subscribers > 100000
+  #   channel.views < 1000
+  #   channel.level < 4 && channel.subscribers < 1000
+  #   false (never)
+  #   true (always)
+  autoAction:
+    - level: like
+      condition: channel.level < 4 && video && video.status === "VRM"
+# video item settings
+video:
+  # seconds since last published video is considered old
+  old: 86400
+  # color settings for a freshly published video
+  red: 93
+  green: 93
+  blue: 93
+  # color settings for a video with status NOK (network error)
+  nokRed: 191
+  nokGreen: 191
+  nokBlue: 127
+  # color settings for a video with status VIP (private video)
+  privateRed: 191
+  privateGreen: 127
+  privateBlue: 191
+  # color settings for a video with status VAR (age restricted video requiring login)
+  restrictedRed: 127
+  restrictedGreen: 191
+  restrictedBlue: 191
+  # color settings for a video with status VRM (removed by YouTube)
+  removedRed: 191
+  removedGreen: 63
+  removedBlue: 63
+  # color settings for a video with status VDL (deleted by author)
+  deletedRed: 191
+  deletedGreen: 127
+  deletedBlue: 127
+  # background color for channel information - standard
+  channelRGB: rgb(0,0,0)
+  # background color for channel information - followed channel
+  followLevelRGB: rgb(63,31,127)
+  # background color for channel information - terminated channel
+  terminatedRGB: rgb(127,31,63)
+  # background color for channel information - deleted channel
+  deletedRGB: rgb(191,127,127)
+  # preview constants
+  # range for the number of miliseconds between storyboard frames
+  minGap: 10
+  maxGap: 200
+  liveGap: 125
+  liveFPS: 2
+  trackDelayMS: 500
+  # playback speed is the square root of video duration in seconds divided by divPlayback subject to...
+  divPlayback: 5
+  # maximum video preview playback speed
+  maxPlayback: 10
+  # minimum video preview playback speed
+  minPlayback: 2
+  # thumb0Left: -16.667
+  # thumb0Top: -38.889
+  # thumb0WidthX: 1.333
+  # thumb1Left: 0
+  # thumb1Top: 12.5
+  # thumb1WidthX: 0.75
+  # defaultImage: hqdefault.jpg
+  # imageUrl: https://i.ytimg.com/vi
+  # watchUrl: https://www.youtube.com/watch?v=
+  # embedUrl: https://www.youtube.com/embed
+  # previewMuted: 1
+  # previewLoop: 1
+  # previewAutoplay: 1
+  # previewHeight: 1
+  # textHeight: 0.2275
+  # statHeight: 0.07
+  # chanHeight: 0.256
+  # metaHeight: 0.085
+  # imageHeight: 0.0625
+  # innerFrame: 16
+  # embedBorder: 24
+  # set to 1 to loop video when watching embedded video
+  embedLoop: 1
+  # set to 1 to mute sound when watching embedded video
+  embedMuted: 0
+  # if not muted, set default volume level 0 to 1
+  embedVolume: 0.5
+  # set to 1 to initially play best quality video with audio included,
+  # 0 will initially play best video quality, manually you can play any video stream.
+  embedBoth: 1
+  # embedAutoplay: 1
+  # embedControls: 1
+  # viewsEyeField: 30
+  # viewsValueField: 70
+  # viewsField: 30
+  sortField: 72
+  # durationField: 35
+  # publishedField: 35
+  # channelSubsField: 20
+  # channelViewsLabel: 15
+  # predefinedStates: 6
+  statusHint: video status filter
+  timeHint: video time filter
+  viewHint: video view filter
+  lengthHint: video length filter
+  # video list sort/filters have access to the following fields:
+  # topic.id - autoincrement integer id
+  # topic.name - name of topic
+  # topic.status - updates - ON, OFF
+  # search.id - autoincrement integer id
+  # search.name - name of search
+  # search.topic - same as topic.id
+  # search.updates - ON, OFF
+  # search.proxify - YES, NO
+  # search.auto - block, scan, update, like, queue
+  # search.updatedHour - hour search update timestamp
+  # search.updatedDay - day search update timestamp
+  # search.latestHour - hour search latest video published timestamp
+  # search.latestDay - day search latest video published timestamp
+  # search.status - OK, NOK
+  # channel.id - 24 character YT channel id
+  # channel.search - 24 character YT channel id
+  # channel.views - views for all channel video (for all time)
+  # channel.subscribers - number of channel subscribers
+  # channel.joined - timestamp of date channel author joined YT
+  # channel.updated - timestamp of last channel update
+  # channel.latest - timstamp of last video published time
+  # channel.level - 0 blocked, 1 searched, 2 scanned, 3 updated, 4 liked, 5 followed
+  # channel.status - OK, NOK, CDL - channel deleted, CRM - channel removed, CNA - channel not available
+  # video.id - 11 character YT video identity
+  # video.channel - 24 character YT channel code
+  # video.duration - video duration in seconds
+  # video.expiry - video streams expire expiry seconds after update
+  # video.views - number of views.
+  # video.reviewed - timestamp when updated or just views/status is updated
+  # video.updated - timestamp when streams/media is updated
+  # video.published - timestamp (estimated) when video was published
+  # video.discovered - timestamp when video is added to database
+  # video.downloaded - timestamp when download is completed
+  # video.state - result, preview, upgrade, update, noupdate, offline, queue, download, download.., downloaded, discarded
+  # video.status - OK, NOK, VOL, VDL, VRM, VIP, VAR
+  # popularity - video views per hour (nb no video prefix)
+  # expires - timestamp when media streams expire (nb no video prefix)
+  # status filter options and corresponding SQL snippets
+  statusList:
+    - tag: any
+      sql: ""
+    - tag: followed
+      sql: channel.level = 5
+    - tag: not followed
+      sql: channel.level < 5
+    - tag: liked+
+      sql: channel.level >= 4
+    - tag: liked
+      sql: channel.level = 4
+    - tag: liked-
+      sql: channel.level <= 4
+    - tag: not liked
+      sql: channel.level != 4
+    - tag: updated+
+      sql: channel.level >= 3
+    - tag: updated
+      sql: channel.level = 3
+    - tag: updated-
+      sql: channel.level <= 3
+    - tag: not updated
+      sql: channel.level != 3
+    - tag: scanned+
+      sql: channel.level >= 2
+    - tag: scanned
+      sql: channel.level = 2
+    - tag: scanned-
+      sql: channel.level <= 2
+    - tag: not scanned
+      sql: channel.level != 2
+    - tag: searched+
+      sql: channel.level >= 1
+    - tag: searched
+      sql: channel.level = 1
+    - tag: searched-
+      sql: channel.level <= 1
+    - tag: not searched
+      sql: channel.level != 1
+    - tag: blocked
+      sql: channel.level = 0
+    - tag: not blocked
+      sql: channel.level != 0
+    - tag: online
+      sql: video.status IN ('OK','NOK','VIP','VAR')
+    - tag: offline
+      sql: video.status IN ('VDL','VRM','VOL')
+    - tag: missing
+      sql: video.status = 'VOL'
+    - tag: deleted
+      sql: video.status = 'VDL'
+    - tag: removed
+      sql: video.status = 'VRM'
+    - tag: private
+      sql: video.status = 'VIP'
+    - tag: restricted
+      sql: video.status = 'VAR'
+    - tag: ch missing
+      sql: channel.status = 'CNA'
+    - tag: ch deleted
+      sql: channel.status = 'CDL'
+    - tag: ch terminated
+      sql: channel.status = 'CTM'
+    - tag: updates on
+      sql: topic.status = 'ON'
+    - tag: updates off
+      sql: topic.status = 'OFF'
+    - tag: ok
+      sql: video.status = 'OK'
+    - tag: not ok
+      sql: video.status = 'NOK'
+  # time filter options and corresponding SQL snippets
+  timeList:
+    - tag: any
+      sql: ""
+    - tag: published <15m
+      sql: now() - video.published < minutes(15)
+    - tag: published <30m
+      sql: now() - video.published < minutes(30)
+    - tag: published <1h
+      sql: now() - video.published < hours(1)
+    - tag: published <2h
+      sql: now() - video.published < hours(2)
+    - tag: published <6h
+      sql: now() - video.published < hours(6)
+    - tag: published <12h
+      sql: now() - video.published < hours(12)
+    - tag: published >12h
+      sql: now() - video.published >= hours(12)
+    - tag: discovered <15m
+      sql: now() - video.discovered < minutes(15)
+    - tag: discovered <30m
+      sql: now() - video.discovered < minutes(30)
+    - tag: discovered <1h
+      sql: now() - video.discovered < hours(1)
+    - tag: discovered <2h
+      sql: now() - video.discovered < hours(2)
+    - tag: discovered <6h
+      sql: now() - video.discovered < hours(6)
+    - tag: discovered >6h
+      sql: now() - video.discovered >= hours(6)
+    - tag: latest <15m
+      sql: now() - channel.latest < minutes(15)
+    - tag: latest <30m
+      sql: now() - channel.latest < minutes(30)
+    - tag: latest <1h
+      sql: now() - channel.latest < hours(1)
+    - tag: latest <2h
+      sql: now() - channel.latest < hours(2)
+    - tag: latest <6h
+      sql: now() - channel.latest < hours(6)
+    - tag: latest <12h
+      sql: now() - channel.latest < hours(12)
+    - tag: latest >12h
+      sql: now() - channel.latest >= hours(12)
+    - tag: joined <1d
+      sql: now() - channel.joined < days(1)
+    - tag: joined <2d
+      sql: now() - channel.joined < days(2)
+    - tag: joined <1w
+      sql: now() - channel.joined < days(7)
+    - tag: joined <1m
+      sql: now() - channel.joined < days(30)
+    - tag: joined <1y
+      sql: now() - channel.joined < days(365)
+    - tag: joined >1y
+      sql: now() - channel.joined >= days(365)
+    - tag: updated <15m
+      sql: now() - video.updated < minutes(15)
+    - tag: updated <30m
+      sql: now() - video.updated < minutes(30)
+    - tag: updated <1h
+      sql: now() - video.updated < hours(1)
+    - tag: updated <6h
+      sql: now() - video.updated < hours(6)
+    - tag: updated >6h
+      sql: now() - video.updated >= hours(6)
+    - tag: downloaded <15m
+      sql: now() - video.downloaded < minutes(15)
+    - tag: downloaded <30m
+      sql: now() - video.downloaded < minutes(30)
+    - tag: downloaded <1h
+      sql: now() - video.downloaded < hours(1)
+    - tag: downloaded <6h
+      sql: now() - video.downloaded < hours(6)
+    - tag: downloaded >6h
+      sql: now() - video.downloaded >= hours(6)
+  # view filter options and corresponding SQL snippets
+  viewList:
+    - tag: any
+      sql: ""
+    - tag: viral (>1000vph)
+      sql: popularity >= 1000
+    - tag: notable (>50vph)
+      sql: popularity >= 50
+    - tag: noticed (>3vph)
+      sql: popularity >= 3
+    - tag: unnoticed (<3vph)
+      sql: popularity < 3
+    - tag: watched (>1v)
+      sql: video.views >= 1
+    - tag: unwatched (0v)
+      sql: video.views = 0
+    - tag: stadium (>1bcv)
+      sql: channel.views >= 1000000000
+    - tag: theatre (>1mcv)
+      sql: channel.views >= 1000000
+    - tag: hall (>100kcv)
+      sql: channel.views >= 100000
+    - tag: lounge (>10kcv)
+      sql: channel.views >= 10000
+    - tag: garage (<10kcv)
+      sql: channel.views < 10000
+    - tag: stars (>1ms)
+      sql: channel.subscribers >= 1000000
+    - tag: pros (>1ks)
+      sql: channel.subscribers >= 1000
+    - tag: amateurs (>10s)
+      sql: channel.subscriber >= 10
+    - tag: newbies (<10s)
+      sql: channel.subscribers < 10
+  # length filter options and corresponding SQL snippets
+  lengthList:
+    - tag: any
+      sql: ""
+    - tag: micro <16s
+      sql: video.duration < 16
+    - tag: clip <1m
+      sql: video.duration < 60
+    - tag: video >1m
+      sql: video.duration >= 60
+    - tag: short 1m-4m
+      sql: (video.duration >= 60 AND video.duration < 240)
+    - tag: medium 4m-20m
+      sql: (video.duration >= 240 AND video.duration < 1200)
+    - tag: episode 20m-60m
+      sql: (video.duration >= 1200 AND video.duration < 3600)
+    - tag: movie >1h
+      sql: video.duration >= 3600
+    - tag: short <4m
+      sql: video.duration < 240
+    - tag: long >20m
+      sql: video.duration >= 1200
+  # sort options and corresponding SQL snippets for ascending order
+  # note, for descending order, all ASC and DESC are simply swapped.
+  # field is the field descriptor for displayed sort values
+  # format is either:
+  # age (time since an event),
+  # length (duration),
+  # quantity (a number with compact formatting)
+  # none (leave value as it is) or
+  # a number representing the maximum number of characters to display (text)
+  sortList:
+    - tag: published
+      sql: video.published ASC
+      field: published
+      format: age
+    - tag: discovered
+      sql: video.discovered ASC
+      field: discovered
+      format: age
+    - tag: updated
+      sql: video.updated ASC
+      field: updated
+      format: age
+    - tag: popularity
+      sql: popularity ASC, video.published ASC
+      field: popularity
+      format: quantity
+    - tag: views
+      sql: video.views ASC, video.published ASC
+      field: views
+      format: quantity
+    - tag: length
+      sql: video.duration ASC, video.published ASC
+      field: duration
+      format: length
+    - tag: subscribers
+      sql: channel.subscribers ASC, video.channel ASC, video.published ASC
+      field: csubs
+      format: quantity
+    - tag: ch views
+      sql: channel.views ASC, video.channel ASC, video.published ASC
+      field: cviews
+      format: quantity
+    - tag: ch latest
+      sql: channel.latest ASC, video.channel ASC, video.published ASC
+      field: clatest
+      format: age
+    - tag: ch updated
+      sql: channel.updated ASC, video.channel ASC, video.published ASC
+      field: cupdated
+      format: age
+    - tag: title
+      sql: meta(video.data, 'title') ASC, video.published DESC
+      field: meta.title
+      format: 12
+    - tag: channel
+      sql: video.channel ASC, video.published ASC
+      field: channel
+      format: 12
+    - tag: author
+      sql: meta(video.data, 'author') ASC, video.published DESC
+      field: meta.author
+      format: 12
+    - tag: joined
+      sql: channel.joined ASC, video.published ASC
+      field: cjoined
+      format: age
+    - tag: expiry
+      sql: expires ASC, video.published ASC
+      field: expires
+      format: age
+    - tag: downloaded
+      sql: video.downloaded ASC
+      field: downloaded
+      format: age
+  # autoAction changes the state of a video based on a matching condition
+  # possible autoStates are:
+  #   - result
+  #   - preview
+  #   - upgrade
+  #   - update
+  #   - noupdate
+  #   - offline
+  #   - queue
+  #   - download
+  #   - download..
+  #   - downloaded
+  #   - discarded
+  # conditions are only tested if current state is result, preview, upgrade, update, noupdate or queue
+  # in practice the most useful autostates to invoke would be queue, download and discarded
+  # conditions are evaluated javascript snippets that match a corresponding auto
+  autoAction:
+    - state: download
+      condition: video.status === 'VRM'
+# video state options array and settings
+state:
+  # state 0 is used for channel mode
+  - tag: chview
+    # videoStates:
+    #   - result
+    #   - preview
+    #   - update
+    #   - upgrade
+    #   - noupdate
+    #   - offline
+    #   - queue
+    #   - download..
+    #   - download
+    #   - downloaded
+    #   - discarded
+    # allActions:
+    #   - none
+    #   - refresh
+    #   - queue
+    #   - download
+    #   - export
+    #   - erase
+    #   - rotate
+    #   - discard
+  # state 1 is used for new/undiscarded search results
+  - tag: result
+    # videoStates:
+    #   - result
+    #   - preview
+    #   - update
+    #   - upgrade
+    #   - noupdate
+    #   - offline
+    # allActions:
+    #   - none
+    #   - block
+    #   - search
+    #   - scan
+    #   - update
+    #   - like
+    #   - follow
+    #   - refresh
+    #   - queue
+    #   - download
+    #   - export
+    #   - erase
+    #   - rotate
+    #   - discard
+  # state 2 is for entry mode which includes all (including discarded/queued/downloaded) videos
+  - tag: entry
+    # videoStates:
+    #   - result
+    #   - preview
+    #   - update
+    #   - upgrade
+    #   - noupdate
+    #   - offline
+    #   - queue
+    #   - download..
+    #   - download
+    #   - downloaded
+    #   - discarded
+    # allActions:
+    #   - none
+    #   - block
+    #   - search
+    #   - scan
+    #   - update
+    #   - like
+    #   - follow
+    #   - refresh
+    #   - queue
+    #   - unqueue
+    #   - download
+    #   - export
+    #   - erase
+    #   - rotate
+    #   - discard
+  # state 3 is your queue - requiring your attention, selected videos,
+  # videos from followed channels, and pending downloads
+  - tag: queue
+    # videoStates:
+    #   - queue
+    #   - download..
+    #   - download
+    # allActions:
+    #   - none
+    #   - block
+    #   - search
+    #   - scan
+    #   - update
+    #   - like
+    #   - follow
+    #   - refresh
+    #   - unqueue
+    #   - download
+    #   - export
+    #   - erase
+    #   - rotate
+    #   - discard
+  # state 4 - pending downloads - queued downloads that derive from your video auto action rules
+  - tag: pending
+    # videoStates:
+    #   - download..
+    #   - download
+    # allActions:
+    #   - none
+    #   - block
+    #   - search
+    #   - scan
+    #   - update
+    #   - like
+    #   - follow
+    #   - refresh
+    #   - download
+    #   - export
+    #   - erase
+    #   - rotate
+    #   - discard
+  # state 5 - downloaded videos
+  - tag: download
+    # videoStates:
+    #   - downloaded
+    # allActions:
+    #   - none
+    #   - block
+    #   - search
+    #   - scan
+    #   - update
+    #   - like
+    #   - follow
+    #   - export
+    #   - erase
+    #   - rotate
+    #   - discard
+  # states 6-15 are custom states that you can configure and name.
+  # you add additional custom states beyond state 15.
+  # state 6
+  # name of the custom state as displayed in video state control
+  - tag: custom 0
+    # videoStates are the video states that are included in this grouping
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    # allowable bulk actions
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 7
+  - tag: custom 1
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 8
+  - tag: custom 2
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 9
+  - tag: custom 3
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 10
+  - tag: custom 4
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 11
+  - tag: custom 5
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 12
+  - tag: custom 6
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 13
+  - tag: custom 7
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 14
+  - tag: custom 8
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+  # state 15
+  - tag: custom 9
+    videoStates:
+      - result
+      - preview
+      - update
+      - upgrade
+      - noupdate
+      - offline
+    allActions:
+      - none
+      - block
+      - search
+      - scan
+      - update
+      - like
+      - follow
+      - refresh
+      - queue
+      - download
+      - export
+      - erase
+      - rotate
+      - discard
+# general web client settings
+client:
+  # number of milliseconds between item list updates
+  refreshCycle: 30000
+  # number of milliseconds between server bandwidth updates
+  bandwidthCycle: 10000
+  # maxStatusString: 12
+  # channelCodeLength: 24
+  # buttonHeight: 16
+  # buttonWidth: 16
+  # when choosing hybrid preview, video previews occur below hybridDuration
+  # whereas animated storyboard preview occur above hybridDuration
+  hybridDuration: 60
+  # textInputLength: 20
+  # displayField: 6
+  # sortField: 9
+  # textLabel: 7
+  # resortField: 3
+  # autoField: 3
+  # navField: 3
+  navHomeField: 5
+  # undoField: 4
+  # actionField: 4
+  # actionOptionField: 8
+  # scaleDownField: 4
+  # scaleUpField: 4
+  # previewField: 10
+  # when scaling items up or down, the scale is multiplied or divided by the scaleFactor
+  scaleFactor: 1.05
+  # 3 bulk shortcut keys for setting channel levels can be configured using javascript key codes
+  # to disable use: None
+  blockCode1: KeyB
+  blockCode2: NumpadSubtract
+  blockCode3: Minus
+  searchCode1: KeyS
+  searchCode2: NumpadDecimal
+  searchCode3: Period
+  scanCode1: KeyC
+  scanCode2: NumpadDivide
+  scanCode3: Slash
+  updateCode1: KeyU
+  updateCode2: NumpadEnter
+  updateCode3: Enter
+  likeCode1: keyL
+  likeCode2: NumpadAdd
+  likeCode3: Equal
+  followCode1: KeyF
+  followCode2: NumpadMultiply
+  followCode3: Digit8
+  # all lists allow a maximum fixed number of items.
+  # Always retain 0 as this translates to "auto" which selects just enough items to fill the content area.
+  displayOptions:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 9
+    - 10
+    - 12
+    - 15
+    - 18
+    - 20
+    - 24
+    - 30
+    - 35
+    - 40
+    - 60
+    - 90
+    - 120
+    - 180
+    - 240
+    - 300
+    - 600
+    - 1000
+    - 5000
+# file ends
