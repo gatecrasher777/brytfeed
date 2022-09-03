@@ -7,7 +7,7 @@ engine:
   # port is the port number of the nodejs ytzero server
   port: 3164
   # cookie is a youtube cookie string of your logged in YouTube session, not required
-  cookie: VISITOR_INFO1_LIVE=AH99S8WSMH0; HSID=AP2c2wCQRuusVxMHV; SSID=AZcHCpmEKKn4ox5-G; APISID=YBjpDR8rzV6BVmHV/AfX7_CqzsJyF4120W; SAPISID=P81q-FV7EtlxYpTQ/ANhyGI5k3cHcg3kQf; __Secure-1PAPISID=P81q-FV7EtlxYpTQ/ANhyGI5k3cHcg3kQf; __Secure-3PAPISID=P81q-FV7EtlxYpTQ/ANhyGI5k3cHcg3kQf; PREF=tz=Africa.Johannesburg&hl=en&f5=30000&f6=400&f4=4000000; LOGIN_INFO=AFmmF2swRAIgImyc40UvhkJynll9A6guDnmSSh9VFYBZyqXIgROLDb0CIFLWZNG1rRbKDtLE_RlTEpWhZ_2U6NWRzc2K-ACFUddp:QUQ3MjNmeUw2bUd0b3BGZGRITDBkc0xoZjRvb1ktM3l0QS1BcHFZRUpGQUNjYWRNcmlfelk0WW5idHVldlZBWmNxalVxZjc3OUR2d3lldXBRWHRQUndhN2lDMXhXaHFPZUZaNHNfQm4xV3A1aHNyM2xPeWo3VENlWVlnbHRoTlRfb3YtTmJzNXF3clc2V3BrdHEzeVpkTTYtdWpZcXNObGhB; SID=KAgX1j6g6F-UEFxqcnPJVSNSyfhlcFXNzbZ1ISL45ujJCUH4BI14dIYpqe9F2NsJY0I7oA.; __Secure-1PSID=KAgX1j6g6F-UEFxqcnPJVSNSyfhlcFXNzbZ1ISL45ujJCUH4p39_Eqv7t0F0SQWAxkIWkQ.; __Secure-3PSID=KAgX1j6g6F-UEFxqcnPJVSNSyfhlcFXNzbZ1ISL45ujJCUH46w-iauTSUFpL7xRk_6S7JA.; YSC=wNTO5s_pLSQ; SIDCC=AJi4QfFhcK2mRe5657hFVBndjRM3ODI8cQyfQuPeiF6bZvQvOTWsNId4bTwcn0S8XgUtfMEDdrym; __Secure-3PSIDCC=AJi4QfG8QF3eK0hFU8cKq1nN0JDlqH1syFQnxI3PiQu4c31yFaND32b6M93jEWD1k-DahQm2zfQ
+  cookie: ""
   # agent is a browser agent string, not required.
   agent: ""
   # proxy is a "protocol://xxx.xxx.xxx.xxx:port" style proxy string. If left empty no proxy is applied.
