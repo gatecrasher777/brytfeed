@@ -1,4 +1,4 @@
-# ytzero (pre-release)
+# brytfeed (pre-release)
 
 A zero-day, real-time YouTube feed with a feature-rich, highly customizable browser GUI.
 
