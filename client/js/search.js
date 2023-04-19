@@ -1,15 +1,14 @@
-// ytzero - client search container class
-// https://github.com/gatecrasher777/ytzero
-// (c) 2021/2 gatecrasher777
-// MIT Licenced
+/* brytfeed - (c) 2023 Gatecrasher777 */
+/* search client module */
 
-class ytzSearch extends ytzItem {
+// search item class
+class Search extends Model {
 
     // search item constructor
+    // item <object> search data
+    // scale <double> required size of item
 	constructor(item, scale) {
-        super(item,scale);
-        this.item = item;
-        this.type = 'search';
+        super('search', item, scale);
         this.old = wapp.cfg.search.old;
         this.color = {
             'r': wapp.cfg.search.red,
@@ -26,14 +25,15 @@ class ytzSearch extends ytzItem {
 
     // resize the search item
     resize() {
-        this.height = ytzSearch.calc_height(this.scale);
+        this.height = Search.calc_height(this.scale);
     }
 
     // save query
+    // value <string> query string
     set query(value) {
-        if (this.item.meta.query != value) {
-            this.item.meta.query = value;
-            this.set();
+        if (this.item.query != value) {
+            this.item.query = value;
+            this.set('query',value);
         }
     }
 
@@ -46,11 +46,12 @@ class ytzSearch extends ytzItem {
             },
             ht.textarea(
                 {
-                    id: `qry_${this.item.id}`,
+                    id: `qry_${this.item.key}`,
                     class: 'querytext',
-                    onblur: ht.cmd('wapp.queryEdit',this.item.id)
+                    onfocus: ht.cmd('wapp.editText',true),
+                    onblur: ht.cmd('wapp.queryEdit',this.item.key)
                 },
-                this.item.meta.query
+                this.item.query
             )
         );
     }
@@ -82,50 +83,31 @@ class ytzSearch extends ytzItem {
     // show active state
     get active() {
         let attr =  {
-            id: `act_${this.item.id}`,
+            id: `act_${this.item.key}`,
             type: 'checkbox',
-            onclick: ht.cmd('wapp.searchActive',this.item.id),
+            onclick: ht.cmd('wapp.searchActive',this.item.key),
             title: `Allow/Disallow automatic search updates for ${this.item.name}`,
             style: this.genStyle('option',{
                 width: `${0.8*this.width * wapp.cfg.search.optionHeight}px`
             },0.8)
         };
-        if (this.item.meta.updates === 'ON') attr.checked = 'checked';
+        if (this.item.updates) attr.checked = 'checked';
         return ht.input(attr);
     }
 
     // change active state
+    // value <boolean> updates value
     set active(value) {
-        this.item.meta.updates = (value) ? 'ON': 'OFF';
-        this.set();
+        this.item.updates = value ? 1 : 0;
+        this.set('updates', this.item.updates);
     }
 
-    // show proxify state
-    get proxify() {
-        let attr =  {
-            id: `pxy_${this.item.id}`,
-            type: 'checkbox',
-            onclick: ht.cmd('wapp.searchProxy',this.item.id),
-            title: `Search via proxy for ${this.item.name}`,
-            style: this.genStyle('option',{
-                width: `${0.8*this.width * wapp.cfg.search.optionHeight}px`
-            },0.8)
-        };
-        if (this.item.meta.proxify === 'YES') attr.checked = 'checked';
-        return ht.input(attr);
-    }
-
-    // change proxify
-    set proxify(value) {
-        this.item.meta.proxify = (value) ? 'YES': 'NO';
-        this.set();
-    }
-
+    // show channel level option
     get channel() {
         return ht.select(
             {
-                id: `channelLevelSelect_${this.item.id}`,
-                onchange: ht.cmd('wapp.genericSelect',this.item.id,'meta','channelLevel'),
+                id: `channelLevelSelect_${this.item.key}`,
+                onchange: ht.cmd('wapp.genericSelect',this.item.key,'item','channelLevel'),
                 title: 'select update level for newly discovered channels',
                 style: this.genStyle('option', {
                         'border-radius': `${this.radius}px`
@@ -135,7 +117,7 @@ class ytzSearch extends ytzItem {
                 wapp.cfg.channel.levels,
                 (e,i,a) => {
                     let o = {value: i};
-                    if (this.item.meta.channelLevel === i) o.selected = 'selected';
+                    if (this.item.channelLevel === i) o.selected = 'selected';
                     return ht.option(
                         o,
                         e
@@ -144,6 +126,7 @@ class ytzSearch extends ytzItem {
             )
         )
     }
+
     // show options
     get options() {
         return ht.concat
@@ -164,10 +147,8 @@ class ytzSearch extends ytzItem {
                     'class':'optionsrow',
                     style: this.genStyle('option')
                 },
-                wapp.lcell('proxify:',wapp.cfg.search.proxyLabel),
-                wapp.lcell(this.proxify,wapp.cfg.search.proxyField),
-                wapp.rcell(this.channel),
-                wapp.rcell('channel:')
+                wapp.lcell('channel level:',40),
+                wapp.lcell(this.channel)
             )
         );
     }
@@ -182,11 +163,9 @@ class ytzSearch extends ytzItem {
                      }
                  )
             },
-            wapp.lcell(this.status),
             wapp.lcell(this.updated),
             wapp.rcell(this.button('discard','discard this search'),wapp.cfg.item.buttonField),
             wapp.rcell(this.button('refresh','refresh this search now'),wapp.cfg.item.buttonField),
-            //wapp.rcell(this.button('open','open this search'),wapp.cfg.item.buttonField)
         );
     }
 
@@ -203,13 +182,17 @@ class ytzSearch extends ytzItem {
 
     // refresh updateable search data
     refresh() {
-        super.refresh();
-        ut.html(`#vdo_${this.item.id}`,this.videoStr);
-        ut.html(`#lst_${this.item.id}`,ut.tsAge(this.item.latest));
-        ut.html(`#chn_${this.item.id}`,this.channelStr);
+        ut.attr('#div_'+this.item.key,this.attrib);
+        ut.html('#sts_'+this.item.key,this.statusStr);
+        ut.attr('#sts_'+this.item.key,{title: this.reasonStr});
+        ut.html('#upd_'+this.item.key,this.updatedStr);
+        ut.html(`#vdo_${this.item.key}`,this.videoStr);
+        ut.html(`#lst_${this.item.key}`,ut.tsAge(this.item.latest));
+        ut.html(`#chn_${this.item.key}`,this.channelStr);
     }
 
     // determine height of search item
+    // scale <double> scale to apply
     static calc_height(scale) {
         let h = wapp.cfg.search;
         return  wapp.cfg.item.width * scale * (

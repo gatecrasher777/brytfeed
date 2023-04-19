@@ -1,16 +1,16 @@
-// ytzero - client channel container class
-// https://github.com/gatecrasher777/ytzero
-// (c) 2021/2 gatecrasher777
-// MIT Licenced
+/* brytfeed - (c) 2023 Gatecrasher777 */
+/* channel client module */
 
-class ytzChannel extends ytzItem {
+// channel item class
+class Channel extends Model {
 
-     // channel item constructor
+    // channel item constructor
+    // item <object> channel data
+    // scale <double> required size of item
 	constructor(item, scale) {
-        super(item,scale);
-        this.type = 'channel';
+        super('channel',item,scale);
         this.old = wapp.cfg.channel.old;
-        this.backfilled = 0;
+        this.backfilling = false;
         this.color = {
             'r': wapp.cfg.channel.red,
             'g': wapp.cfg.channel.green,
@@ -26,21 +26,21 @@ class ytzChannel extends ytzItem {
 
     // resize the channel item
     resize() {
-        this.height = ytzChannel.calc_height(this.scale);
+        this.height = Channel.calc_height(this.scale);
         if (wapp.list.chanMode) this.height = this.width;
     }
 
     // show flag if country known
     get flag() {
         return ht.ifElse(
-            this.item.meta.country.length,
+            this.item.country.length,
             ht.img(
                 {
-                    src: `../img/flags/${coCo[this.item.meta.country]}.png`,
+                    src: `../img/flags/${coCo[this.item.country]}.png`,
                     style: ht.css({
                         padding: `${wapp.cfg.channel.flagPadding * this.scale}px`}
                     ),
-                    title: this.item.meta.country
+                    title: this.item.country
                 }
             )
         );
@@ -49,12 +49,12 @@ class ytzChannel extends ytzItem {
     // small flag if country known
     get miniflag() {
         return ht.ifElse(
-            this.item.meta.country.length,
+            this.item.country.length,
             ht.img(
                 {
-                    src: `../img/flags/${coCo[this.item.meta.country]}.png`,
+                    src: `../img/flags/${coCo[this.item.country]}.png`,
                     style: this.genStyle('image'),
-                    title: this.item.meta.country
+                    title: this.item.country
                 }
             )
         );
@@ -71,7 +71,7 @@ class ytzChannel extends ytzItem {
                             ht.div(
                                 {
                                     'class' : 'channeldiv',
-                                    onclick: ht.evt('wapp.ytchan', this.item.id),
+                                    onclick: ht.evt('wapp.ytchan', this.item.key),
                                     title: 'click to view this channel on YouTube',
                                     style: ht.css({
                                         width: `${ this.width * wapp.cfg.channel.chanHeight -
@@ -83,7 +83,7 @@ class ytzChannel extends ytzItem {
                                 ht.img(
                                     {
                                         'class': 'avatar',
-                                        src: this.item.meta.thumbnail,
+                                        src: this.item.thumbnail,
                                         style: ht.css({
                                             width: `${this.width * wapp.cfg.channel.chanHeight -
                                                 this.scale * wapp.cfg.channel.thumbGap}px`,
@@ -100,21 +100,29 @@ class ytzChannel extends ytzItem {
                                     'class': 'titlediv',
                                     style: this.genStyle('chan')
                                 },
-                                ht.b(this.item.meta.author),
+                                ht.b(this.item.author),
                                 ht.br(),
-                                this.item.topicName,
+                                this.item.search.topic.name,
                                 ' - ',
-                                this.item.searchName,
+                                this.item.search.name,
                                 ht.br(),
                                 ht.b('id:'),
-                                ht.small(this.item.id),
+                                ht.small(this.item.name),
                                 ht.ifElse(
-                                    this.item.meta.description.length,
-                                    ht.br()+ht.b('description: ')+this.item.meta.description.replace(rp,'<br>')
+                                    this.item.gender !== 'unknown' && this.item.gender !== 'none',
+                                    ht.br()+ht.b('gender: ')+this.item.gender
                                 ),
                                 ht.ifElse(
-                                    this.item.meta.tags && this.item.meta.tags.length,
-                                    ht.br()+ht.b('tags: ')+this.item.meta.tags.join(', ')
+                                    this.item.age,
+                                    ht.br()+ht.b('age: ')+this.item.age
+                                ),
+                                ht.ifElse(
+                                    this.item.description.length,
+                                    ht.br()+ht.b('description: ')+this.item.description.replace(rp,'<br>')
+                                ),
+                                ht.ifElse(
+                                    this.item.tags && this.item.tags.length,
+                                    ht.br()+ht.b('tags: ')+this.item.tags.join(', ')
                                 )
                             )
                         )
@@ -195,8 +203,8 @@ class ytzChannel extends ytzItem {
     get level() {
         return ht.select(
             {
-                id: `levelSelect_${this.item.id}`,
-                onchange: ht.cmd('wapp.genericSelect',this.item.id,'item','level'),
+                id: `levelSelect_${this.item.key}`,
+                onchange: ht.cmd('wapp.genericSelect',this.item.key,'item','level'),
                 title: 'specify update level for this channel',
                 style: this.genStyle('option', {
                     'border-radius': `${this.radius}px`
@@ -218,10 +226,10 @@ class ytzChannel extends ytzItem {
 
     // show channel backfill options
     get backfill() {
-        return ht.select(
+        return this.backfilling ? ht.div({id: `backfillSelect_${this.item.key}`},this.rcell(true,'pending...')) : ht.select(
             {
-                id: `backfillSelect_${this.item.id}`,
-                onchange: ht.cmd('wapp.genericSelect',this.item.id,'','backfill'),
+                id: `backfillSelect_${this.item.key}`,
+                onchange: ht.cmd('wapp.genericSelect',this.item.key,'','backfill'),
                 title: 'choose to backfill videos for this channel',
                 style: this.genStyle('option', {
                         'border-radius': `${this.radius}px`
@@ -242,10 +250,13 @@ class ytzChannel extends ytzItem {
     }
 
     // send backfill request
+    // value <int> index of chosen backfill option
     set backfill(value) {
         if (value) {
+            this.backfilling = true;
             wapp.emit('backfill',{
                 cid: this.item.id,
+                key: this.item.key,
                 orig: this.item.videoCount,
                 days: wapp.cfg.channel.backfill[value].days,
                 cb: 'backfilled'
@@ -299,16 +310,11 @@ class ytzChannel extends ytzItem {
                     style: this.genStyle('update',{},wapp.cfg.item.button2Scale)
                 },
                 wapp.lcell(this.button2('cblock','discard videos - block channel - move to next channel'),wapp.cfg.item.button2Field),
-                ht.ifElse(
-                    this.item.status === 'OK',
-                    ht.concat(
-                        wapp.lcell(this.button2('csearch','discard videos - set to search level - move to next channel'),wapp.cfg.item.button2Field),
-                        wapp.lcell(this.button2('cscan','discard videos - set to scan level - move to next channel'),wapp.cfg.item.button2Field),
-                        wapp.lcell(this.button2('cupdate','discard videos - set to update level - move to next channel'),wapp.cfg.item.button2Field),
-                        wapp.lcell(this.button2('clike','retain videos - like this channel - move to next channel'),wapp.cfg.item.button2Field),
-                        wapp.lcell(this.button2('cfollow','queue videos - follow this channel - move to next channel'),wapp.cfg.item.button2Field)
-                    )
-                )
+                wapp.lcell(this.button2('csearch','discard videos - set to search level - move to next channel'),wapp.cfg.item.button2Field),
+                wapp.lcell(this.button2('cscan','discard videos - set to scan level - move to next channel'),wapp.cfg.item.button2Field),
+                wapp.lcell(this.button2('cupdate','discard videos - set to update level - move to next channel'),wapp.cfg.item.button2Field),
+                wapp.lcell(this.button2('clike','download pending, retain videos - like this channel - move to next channel'),wapp.cfg.item.button2Field),
+                wapp.lcell(this.button2('cfollow','download pending, queue videos - follow this channel - move to next channel'),wapp.cfg.item.button2Field),
             ),
             ht.div(
                 {
@@ -316,7 +322,6 @@ class ytzChannel extends ytzItem {
                     style: this.genStyle('option')
                 },
                 wapp.lcell('backfill request:'),
-                this.lcell(this.backfilled,`(${this.backfilled})`),
                 wapp.rcell(this.backfill),
             )
         );
@@ -333,14 +338,18 @@ class ytzChannel extends ytzItem {
         );
     }
 
-    // refresh updataable channel data
+    // refresh updateable channel data
     refresh() {
-        super.refresh();
-        ut.html(`#vdo_${this.item.id}`,this.videoStr);
-        ut.html(`#lst_${this.item.id}`,ut.tsAge(this.item.latest));
+        ut.attr('#div_'+this.item.key,this.attrib);
+        ut.html('#sts_'+this.item.key,this.statusStr);
+        ut.attr('#sts_'+this.item.key,{title: this.reasonStr});
+        ut.html('#upd_'+this.item.key,this.updatedStr);
+        ut.html(`#vdo_${this.item.key}`,this.videoStr);
+        ut.html(`#lst_${this.item.key}`,ut.tsAge(this.item.latest));
     }
 
     // determine height of channel item
+    // scale <double> scale to apply
     static calc_height(scale) {
         let h = wapp.cfg.channel;
         return wapp.cfg.item.width * scale * (

@@ -1,14 +1,14 @@
-// ytzero - client video container class
-// https://github.com/gatecrasher777/ytzero
-// (c) 2021/2 gatecrasher777
-// MIT Licenced
+/* brytfeed - (c) 2023 Gatecrasher777 */
+/* video client module */
 
-class ytzVideo extends ytzItem {
+// video item class
+class Video extends Model {
 
 	// video item constructor
+    // item <object> video data
+    // scale <double> required size of item
 	constructor(item, scale) {
-        super(item,scale);
-        this.type = 'video';
+        super('video',item,scale);
         this.sb = undefined;
         this.sbscale = 1;
         this.pos = 0;
@@ -18,6 +18,7 @@ class ytzVideo extends ytzItem {
         this.gap = 1;
         this.fps = 10;
         this.playTimer = null;
+        this.vid = null;
         this.previewType = this.initPreview;
         this.prevPreview = this.previewType;
         this.showPreview = 'any';
@@ -62,7 +63,10 @@ class ytzVideo extends ytzItem {
         this.choosing = false;
         this.sources = '';
         this.showInfo = false;
-        this.videoError = false;
+        this.refreshedOnError = false;
+        this.chanHL = false;
+        this.lastTime = -1;
+        this.loaded = false;
 	}
 
     // initialize preview state
@@ -76,7 +80,7 @@ class ytzVideo extends ytzItem {
 
 	// resize the video item
     resize() {
-        this.height = ytzVideo.calc_height(this.scale);
+        this.height = Video.calc_height(this.scale);
     }
 
 	// get age since published
@@ -85,6 +89,7 @@ class ytzVideo extends ytzItem {
     }
 
 	// whether an action is actionable
+     // act <string> action tag
     can(act) {
         switch (act) {
             case 'showinfo': return this.previewType !== 'info';
@@ -101,39 +106,39 @@ class ytzVideo extends ytzItem {
                 )
             );
             case 'rotate': return this.previewType !== 'info';
-            case 'video': return (!this.videoError && (ut.now()<(this.item.updated+1000*this.item.expiry)));
+            case 'video': return ut.now()<(this.item.updated+1000*this.item.expiry);
             case 'download':
                 let exp = (ut.now()>(this.item.updated+1000*this.item.expiry));
                 let dl = ( this.item.state === 'download..' || this.item.state === 'downloaded');
                 return (
-                    this.item.meta
+                    this.item.videoStreams
                     &&
-                    this.item.meta.videoStreams
-                    &&
-                    this.item.meta.videoStreams.length
+                    this.item.videoStreams.length
                     &&
                     !exp
                     &&
                     !dl
                 );
             case 'stopdl':  return (this.item.state === 'download');
-            case 'cancel': return (this.item.state == 'download..');
+            case 'cancel': return (this.item.state === 'download..');
             case 'queue':
-                return ['result','preview','upgrade','update','noupdate','offline','discarded'].includes(this.item.state);
+                return this.item.status === 'OK'
+                    &&
+                    ['result','preview','upgrade','update','noupdate','offline','discarded'].includes(this.item.state)
+                    && this.age<this.old;
             case 'unqueue': return (this.item.state === 'queue');
             case 'refresh':
                 return !['download','download..','downloaded'].includes(this.item.state);
-            case 'erase':
-            case 'export': return (this.item.state === 'downloaded');
-            case 'block': return this.item.clevel !== wapp.cfg.advanced.blockLevel;
-            case 'search': return this.item.clevel !== wapp.cfg.advanced.searchLevel;
-            case 'scan': return this.item.clevel !== wapp.cfg.advanced.scanLevel;
-            case 'update': return this.item.clevel !== wapp.cfg.advanced.updateLevel;
-            case 'like': return this.item.clevel !== wapp.cfg.advanced.likeLevel;
-            case 'follow': return this.item.clevel !== wapp.cfg.advanced.followLevel;
+            case 'erase': return (this.item.state === 'downloaded');
+            case 'block': return this.item.channel && this.item.channel.level !== wapp.cfg.advanced.blockLevel;
+            case 'search': return this.item.channel && this.item.channel.level !== wapp.cfg.advanced.searchLevel;
+            case 'scan': return this.item.channel && this.item.channel.level !== wapp.cfg.advanced.scanLevel;
+            case 'update': return this.item.channel && this.item.channel.level !== wapp.cfg.advanced.updateLevel;
+            case 'like': return this.item.channel && this.item.channel.level !== wapp.cfg.advanced.likeLevel;
+            case 'follow': return this.item.channel && this.item.channel.level !== wapp.cfg.advanced.followLevel;
             case 'unchan': return wapp.list.chanMode;
-            case 'chan': return (!wapp.list.chanMode && this.item.topic);
-            case 'play': return ((this.item.meta.fn.length && this.item.state === 'downloaded') || this.item.meta.canEmbed);
+            case 'chan': return !wapp.list.chanMode;
+            case 'play': return ((this.item.fn.length && this.item.state === 'downloaded') || this.item.canEmbed);
             default: return false;
         }
     }
@@ -141,18 +146,18 @@ class ytzVideo extends ytzItem {
 	// show video info
     get vidInfo() {
         if (this.item.state === 'result') return '';
-        if (this.item.meta.videoStreams.length) {
-            this.item.meta.videoStreams.sort(wapp.vsort);
-            let vi = this.item.meta.videoStreams.findIndex(e => !e.failed);
+        if (this.item.videoStreams.length) {
+            this.item.videoStreams.sort(wapp.vsort);
+            let vi = this.item.videoStreams.findIndex(e => !e.failed);
             if (vi >= 0) {
-                let v = this.item.meta.videoStreams[vi];
+                let v = this.item.videoStreams[vi];
                 let uc = v.container;
                 let s = v.size;
                 if (v.type !== 'both') {
-                    if (this.item.meta.audioStreams.length) {
-                        this.item.meta.audioStreams.sort(wapp.asort);
+                    if (this.item.audioStreams.length) {
+                        this.item.audioStreams.sort(wapp.asort);
                         let asu = false;
-                        this.item.meta.audioStreams.forEach( as => {
+                        this.item.audioStreams.forEach( as => {
                             if (
                                 (!asu)
                                 &&
@@ -188,13 +193,13 @@ class ytzVideo extends ytzItem {
             wapp.lcell(
                 ht.a(
                     {
-                        href: `${wapp.cfg.video.watchUrl}${this.item.id}`,
+                        href: `${wapp.cfg.video.watchUrl}${this.item.name}`,
                         title: 'click to watch this video on YouTube',
                         target: '_blank'
                     },
                     ht.img(
                         {
-                            src: '../img/views.png',
+                            src: imageRes.views,
                             'class': 'eyeimg'
                         }
                     )
@@ -205,7 +210,7 @@ class ytzVideo extends ytzItem {
             wapp.lcell(
                 ht.div(
                     {
-                        id: `vws_${this.item.id}`,
+                        id: `vws_${this.item.key}`,
                         title: 'number of views received by this video (k=thousands, m=millions, b=billions)'
                     },
                     ut.qFmt(this.item.views)
@@ -221,11 +226,11 @@ class ytzVideo extends ytzItem {
         return wapp.lcell(
             ht.div(
                 {
-                    id:`dur_${this.item.id}`,
+                    id:`dur_${this.item.key}`,
                     title: 'video length in seconds, minutes:seconds, or hours:minutes:seconds'
                 },
                 () => {
-                    if ( this.item.duration <=0 || this.item.meta.isLive ) return 'live';
+                    if ( this.item.duration <=0 || this.item.isLive ) return 'live';
                     return ut.secDur(this.item.duration);
                 }
             ),
@@ -237,7 +242,7 @@ class ytzVideo extends ytzItem {
         return wapp.lcell(
             ht.div(
                 {
-                    id:`srt_${this.item.id}`,
+                    id:`srt_${this.item.key}`,
                     title: 'Sort field and value'
                 },
                 `${wapp.subtype.sort}: ${wapp.markStr(wapp.mark(this.item))}`
@@ -256,7 +261,7 @@ class ytzVideo extends ytzItem {
         return wapp.rcell(
             ht.div(
                 {
-                    id: `pub_${this.item.id}`,
+                    id: `pub_${this.item.key}`,
                     title: 'time that has elapsed since this video was published'
                 },
                 this.publishedStr
@@ -275,7 +280,7 @@ class ytzVideo extends ytzItem {
         return wapp.rcell(
             ht.div(
                 {
-                    id: `rev_${this.item.id}`,
+                    id: `rev_${this.item.key}`,
                     'class': 'lcell'
                 },
                 this.reviewedStr
@@ -286,22 +291,24 @@ class ytzVideo extends ytzItem {
 	// show information frame
     get frame() {
         this.previewType = 'info';
+        clearInterval(this.playTimer);
+        this.vid = null;
         let attr = {
-            id: `outer_${this.item.id}`,
+            id: `outer_${this.item.key}`,
             'class': 'outerdiv',
         }
         return ht.div(
             attr,
             ht.div(
                 {
-                    id: `inner_${this.item.id}`,
+                    id: `inner_${this.item.key}`,
                     'class': 'innerdiv',
                     style: ht.css({
                         top: `${wapp.cfg.video.innerFrame*this.scale}px`,
                         left: `0px`,
                         right: `0px`,
                         bottom: `${wapp.cfg.video.innerFrame*this.scale}px`,
-                        'pointer-events' : 'inherit',
+                        'pointer-events' : 'auto',
                         cursor : 'auto'
                     }),
                 },
@@ -311,8 +318,7 @@ class ytzVideo extends ytzItem {
                 this.stats,
                 this.metarow
             ),
-            this.divopts,
-            this.prevnext
+            this.divopts
         );
     }
 
@@ -330,9 +336,9 @@ class ytzVideo extends ytzItem {
                         true,
                         'this channel is blocked'
                     ),
-            ht.ifElse(
-                this.item.cstatus === 'OK',
-                ht.concat(
+            //ht.ifElse(
+            //    this.item.channel.status === 'OK',
+            //    ht.concat(
                     this.div(
                         'search',
                         'set channel level to search - only adds videos from search',
@@ -365,8 +371,8 @@ class ytzVideo extends ytzItem {
                         true,
                         'this channel is followed'
                     ),
-                )
-            ),
+                //)
+            //),
             this.div('discard','discard this video'),
             this.div('rotate','rotate video preview 90 degrees anti-clockwise'),
             this.div('refresh','refresh this video info now'),
@@ -397,108 +403,109 @@ class ytzVideo extends ytzItem {
             this.div('download','download this video'),
             this.div('stopdl','stop the pending download of this video'),
             this.div('cancel','cancel download'),
-            this.div('erase','erase the downloaded video'),
-            this.div('export','export the downloaded video to the export directory now'),
+            this.div('erase','erase the downloaded video')
         );
     }
 
-	// show whether neighbouring items belong to the same channel
-    get prevnext() {
-        if (this.embedInfo) return '';
-        let pnStyle = this.genStyle('image', {
-            width: `${(this.width*wapp.cfg.video.imageHeight/2)}px`
-        });
-        return ht.concat(
-            ht.div(
-                {
-                    id: `prv_${this.item.id}`,
-                    'class': 'prevdiv divdiv',
-                    style: pnStyle
-                },
-                ht.img(
-                    {
-                        'class': 'pnimg',
-                        src: '../img/none.png',
-                        style: pnStyle
-                    }
-                )
-            ),
-            ht.div(
-                {
-                    id: `nxt_${this.item.id}`,
-                    'class': 'nextdiv divdiv',
-                    style: pnStyle
-                },
-                ht.img(
-                    {
-                        'class': 'pnimg',
-                        src: '../img/none.png',
-                        style: pnStyle
-                    }
-                )
-            )
+    // redisplay overlay options without repreview
+    reoption() {
+        this.rediv('chan','to filter on this channel');
+        this.rediv('unchan','to exit channel filter');
+        this.rediv('queue','queue this video');
+        this.rediv('unqueue','unqueue this video');
+        this.rediv(
+            'block',
+            'block this channel - discards existing videos and adds no new videos',
+            true,
+            'this channel is blocked'
         );
-    }
-
-	// mark that previous video as belonging to the same channel
-    prev(show) {
-        ut.html(`#prv_${this.item.id}`, ht.img(
-            {
-                'class': 'pnimg',
-                title: show ? 'same channel as previous item' : '',
-                src: show ? '../img/prev.png' : '../img/none.png',
-                style: this.genStyle('image', {
-                    width: `${(this.width * wapp.cfg.video.imageHeight / 2)}px`
-                })
-            }
-        ));
-    }
-
-	// mark that next video as belonging to the same channel
-    next(show) {
-        ut.html(`#nxt_${this.item.id}`, ht.img(
-            {
-                'class': 'pnimg',
-                title: show ? 'same channel as next item' : '',
-                src: show ? '../img/next.png' : '../img/none.png',
-                style: this.genStyle('image', {
-                    width: `${(this.width * wapp.cfg.video.imageHeight / 2)}px`
-                })
-            }
-        ));
+        this.rediv(
+            'search',
+            'set channel level to search - only adds videos from search',
+            this.item.channel.status === 'OK',
+            'this channel is searched'
+        );
+        this.rediv(
+            'scan',
+            'set channel level to scan - scans channel when new videos are discovered from search',
+            this.item.channel.status === 'OK',
+            'this channel is scanned'
+        );
+        this.rediv(
+            'update',
+            'set channel to update - adds videos from search and regular channel scans',
+            this.item.channel.status === 'OK',
+            'this channel is updated'
+        );
+        this.rediv(
+            'like',
+            `like this channel - adds videos from search and regular channel scans (with ${wapp.
+            cfg.advanced.likeFrequency}x frequency)`,
+            this.item.channel.status === 'OK',
+            'this channel is liked'
+        );
+        this.rediv(
+            'follow',
+            `follow this channel -  adds videos from search and regular channel scans (with ${wapp.
+            cfg.advanced.followFrequency}x frequency)`,
+            this.item.channel.status === 'OK',
+            'this channel is followed'
+        );
+        this.rediv('discard','discard this video');
+        this.rediv('rotate','rotate video preview 90 degrees anti-clockwise');
+        this.rediv('refresh','refresh this video info now');
+        this.rediv(
+            'showinfo',
+            'show information about this video',
+            true,
+            'showing video information'
+        );
+        this.rediv(
+            'showimage',
+            'show image preview and manual storyboard for this video',
+            true,
+            'showing video image'
+        );
+        this.rediv(
+            'playstory',
+            'play storyboard preview for this video',
+            true,
+            'playing storyboard preview'
+        );
+        this.rediv(
+            'playvideo',
+            'play video preview for this video',
+            true,
+            'playing video preview'
+        );
+        this.rediv('download','download this video');
+        this.rediv('stopdl','stop the pending download of this video');
+        this.rediv('cancel','cancel download');
+        this.rediv('erase','erase the downloaded video');
     }
 
 	// show preview
     get preview() {
-        let s = [];
-        if (this.item.meta) s = this.item.meta.storyBoards;
-        if (s.length) {
+        let s = this.item.storyboards;
+        if (s && s.length) {
             this.sb = s[s.length-1];
             let w = this.width / this.sb.width;
             let h = this.width * wapp.cfg.video.previewHeight / this.sb.height;
             this.sbscale = Math.min(w, h);
         }
-        let attr = ['images','storyboards'].includes(this.previewType) ? {
-            id: `outer_${this.item.id}`,
-            'class': 'outerdiv',
-            onmouseenter: ht.evt('wapp.thumbenter',this.item.id),
-            onmousemove: ht.evt('wapp.thumbmove',this.item.id),
-            onmouseleave: ht.evt('wapp.thumbleave',this.item.id),
-            onclick: ht.evt('wapp.embed',this.item.id),
-            title: 'click to play'
-        } : {
-            id: `outer_${this.item.id}`,
-            'class': 'outerdiv',
-            onclick: ht.evt('wapp.embed',this.item.id),
-            onmouseenter: ht.evt('wapp.thumbenter',this.item.id),
-            onmouseleave: ht.evt('wapp.thumbleave',this.item.id),
-            title: 'click to play'
-        }
         return ht.div(
-            attr,
+            {
+                id: `outer_${this.item.key}`,
+                'class': 'outerdiv',
+                onmouseenter: ht.cmd('wapp.thumbenter',this.item.key),
+                onmousemove: ht.evt('wapp.thumbmove',this.item.key),
+                onmouseleave: ht.cmd('wapp.thumbleave',this.item.key),
+                onclick: ht.evt('wapp.embed',this.item.key),
+                title: 'click to play'
+            },
             ht.div(
                 {
-                    id: `inner_${this.item.id}`,
+                    id: `inner_${this.item.key}`,
                     'class': 'innerdiv',
                     style: ht.css({
                         top: '0px',
@@ -512,7 +519,7 @@ class ytzVideo extends ytzItem {
             this.prevnext,
             ht.div(
                 {
-                    id:`trk_${this.item.id}`,
+                    id:`trk_${this.item.key}`,
                     'class': 'trackdiv'
                 }
             )
@@ -527,39 +534,39 @@ class ytzVideo extends ytzItem {
                 class: 'titlediv',
                 style: this.genStyle('text')
             },
-            ht.b(this.item.meta.title),
+            ht.b(this.item.title),
             ht.br(),
             ht.b('id: '),
-            this.item.id,
+            this.item.name,
             ht.ifElse(
-                this.item.meta.category.length,
-                ht.br() + ht.b('category: ') + this.item.meta.category
+                this.item.category.length,
+                ht.br() + ht.b('category: ') + this.item.category
             ),
             this.vidInfo,
             ht.ifElse(
-                this.item.meta.description.length,
-                ht.br() + ht.b('description: ') + this.item.meta.description.replace(rp,'<br>')
+                this.item.description.length,
+                ht.br() + ht.b('description: ') + this.item.description.replace(rp,'<br>')
             ),
             ht.ifElse(
-                this.item.meta.keywords.length,
-                ht.br() + ht.b('keywords: ') + this.item.meta.keywords.join(', ')
+                this.item.keywords.length,
+                ht.br() + ht.b('keywords: ') + this.item.keywords.join(', ')
             ),
             ht.ifElse(
-                (this.item.meta.topic && this.item.meta.topic.length),
-                ht.br() + ht.b('topic: ') + this.item.topicName
+                (this.item.topic && this.item.topic.length),
+                ht.br() + ht.b('topic: ') + this.item.channel.search.topic.name
             ),
             ht.ifElse(
-                (this.item.meta.query && this.item.meta.query.length),
-                ht.br() + ht.b('search: ') + this.item.searchName
+                (this.item.query && this.item.query.length),
+                ht.br() + ht.b('search: ') + this.item.channel.search.name
             )
         );
     }
 
 	// show channel info
     get channel() {
-        let rgb = this.item.cstatus === 'CTM' ? wapp.cfg.video.terminatedRGB :
-            this.item.cstatus === 'CDL' ? wapp.cfg.video.deletedRGB :
-            this.item.clevel === wapp.cfg.advanced.followLevel ? wapp.cfg.video.followLevelRGB :
+        let rgb = this.item.channel.status === 'CTM' ? wapp.cfg.video.terminatedRGB :
+            this.item.channel.status === 'CDL' ? wapp.cfg.video.deletedRGB :
+            this.item.channel.level === wapp.cfg.advanced.followLevel ? wapp.cfg.video.followLevelRGB :
             wapp.cfg.video.channelRGB;
         let aa = { 'background-color:': rgb }
         return ht.div(
@@ -575,7 +582,7 @@ class ytzVideo extends ytzItem {
                             ht.div(
                                 {
                                     'class' : 'channeldiv',
-                                    onclick: ht.evt('wapp.ytchan',this.item.id,true),
+                                    onclick: ht.evt('wapp.ytchan',this.item.key,true),
                                     title: 'click to view this channel on YouTube',
                                     style: ht.css({
                                         width: `${(this.width * wapp.cfg.video.chanHeight -
@@ -587,7 +594,7 @@ class ytzVideo extends ytzItem {
                                 ht.img(
                                     {
                                         'class': 'avatar',
-                                        src: this.item.cmeta.thumbnail || this.item.meta.channelThumb,
+                                        src: this.item.channel.thumbnail,
                                         style: ht.css({
                                             width: `${(this.width * wapp.cfg.video.chanHeight -
                                                 wapp.cfg.channel.thumbGap)}px`,
@@ -603,10 +610,20 @@ class ytzVideo extends ytzItem {
                                 {
                                     class: 'authordiv'
                                 },
-                                ht.b(this.item.meta.author),
+                                ht.b(this.item.channel.author),
                                 ht.br(),
                                 ht.small(
-                                ht.small(this.item.topicName,' - ',this.item.searchName))
+                                ht.small(this.item.channel.search.topic.name,' - ',this.item.channel.search.name,
+                                ht.br(),
+                                ht.ifElse(
+                                    this.item.channel.gender !== 'unknown' && this.item.channel.gender !== 'none',
+                                    this.item.channel.gender+' '
+                                ),
+                                ht.ifElse(
+                                    this.item.channel.age,
+                                    this.item.channel.age
+                                ),
+                                ))
                             )
                         ),
                         ht.td(
@@ -620,14 +637,17 @@ class ytzVideo extends ytzItem {
 
 	// show channel views string
     get cviewsStr() {
-        return ut.qFmt(this.item.cviews);
+        return ut.qFmt(this.item.channel.views);
     }
 
 	// show when joined
     get cjoined() {
-        return ht.div(
-            ut.tsAge(this.item.cjoined)
+        let j = ut.tsAge(this.item.channel.joined);
+        if (j.length) return ht.div(
+            'joined: ',
+            j
         );
+        return '';
     }
 
 	// show channel views
@@ -639,7 +659,7 @@ class ytzVideo extends ytzItem {
 
 	// show channel subscribers string
     get csubsStr() {
-        return ut.qFmt(this.item.csubs);
+        return ut.qFmt(this.item.channel.subscribers);
     }
 
 	// show channel subscribers
@@ -660,8 +680,7 @@ class ytzVideo extends ytzItem {
             wapp.lcell(this.csubs,wapp.cfg.video.channelSubsField),
             wapp.lcell('views:',wapp.cfg.video.channelViewsLabel),
             wapp.lcell(this.cviews,wapp.cfg.video.channelViewsField),
-            wapp.rcell(this.cjoined),
-            wapp.rcell('joined: ')
+            wapp.rcell(this.cjoined)
         );
     }
 
@@ -727,7 +746,7 @@ class ytzVideo extends ytzItem {
                 (this.item.state == 'download..'),
                 ht.div(
                     {
-                        'id': `prg_${this.item.id}`,
+                        'id': `prg_${this.item.key}`,
                         'class': 'progressdiv',
                     }
                 )
@@ -741,13 +760,16 @@ class ytzVideo extends ytzItem {
     }
 
 	// refresh updateable video data
-    refresh(p,n) {
-        super.refresh();
-        ut.html(`#rev_${this.item.id}`,this.reviewedStr);
-        ut.html(`#vws_${this.item.id}`,this.viewsStr);
-        ut.html(`#pub_${this.item.id}`,this.publishedStr);
-        this.prev(p);
-        this.next(n);
+    refresh(p = false, n = false) {
+        ut.attr('#div_'+this.item.key,this.attrib);
+        if (this.previewType === 'info') {
+            ut.html('#sts_'+this.item.key,this.statusStr);
+            ut.attr('#sts_'+this.item.key,{title: this.reasonStr});
+            ut.html('#upd_'+this.item.key,this.updatedStr);
+            ut.html(`#rev_${this.item.key}`,this.reviewedStr);
+            ut.html(`#vws_${this.item.key}`,this.viewsStr);
+            ut.html(`#pub_${this.item.key}`,this.publishedStr);
+        }
     }
 
 	// show a storybord image
@@ -755,7 +777,7 @@ class ytzVideo extends ytzItem {
         const page = Math.floor(this.pos / this.sb.page[0].frames);
         const left = this.sbscale * this.sb.width * (this.pos % this.sb.perCol);
         const top = this.sbscale * this.sb.height * (Math.floor(this.pos / this.sb.perCol) % this.sb.perRow);
-        const thumb = document.getElementById(`thumb_${this.item.id}`);
+        const thumb = document.getElementById(`thumb_${this.item.key}`);
         let cpage;
         let tframes;
         if (this.sb.frames<0) {
@@ -819,9 +841,9 @@ class ytzVideo extends ytzItem {
                 break;
             }
         }
-        ut.css(`#trk_${this.item.id}`,{width: `${this.pos*100/tframes}%`});
+        ut.css(`#trk_${this.item.key}`,{width: `${this.pos*100/tframes}%`});
         /*
-        ut.html('#dur_'+this.item.id,
+        ut.html('#dur_'+this.item.key,
             ut.secDur(Math.max(0,Math.floor(this.pos*this.item.duration/tframes)))+
            '/'+
            ut.secDur(this.item.duration)
@@ -830,15 +852,17 @@ class ytzVideo extends ytzItem {
     }
 
     // thumb enter preview event
+    // event <object> mouse event object
     thumbenter(event) {
-        wapp.bgc(this.item.channel,'rgb(0,127,127)');
+        wapp.bgc(this.item.cid,'rgb(0,127,127)');
         wapp.bgi(this.item.id,'rgb(127,255,255)');
+        this.chanHL = true;
         if (this.sb) {
             if (this.previewType === 'images') {
-                this.thumbX = ut.offset(`#outer_${this.item.id}`).left;
+                this.thumbX = ut.offset(`#outer_${this.item.key}`).left;
                 switch(this.rotation) {
                     case 0:
-                        ut.css(`#inner_${this.item.id}`,{
+                        ut.css(`#inner_${this.item.key}`,{
                             top: `${((this.width*wapp.cfg.video.previewHeight-this.sbscale*this.sb.height)/2)}px`,
                             left: `${((this.width-this.sbscale*this.sb.width)/2)}px`,
                             width : `${this.sbscale*this.sb.width}px`,
@@ -848,7 +872,7 @@ class ytzVideo extends ytzItem {
                         });
                     break;
                     case 1:
-                        ut.css(`#inner_${this.item.id}`,{
+                        ut.css(`#inner_${this.item.key}`,{
                             top: `${((this.width*wapp.cfg.video.previewHeight-this.sbscale*this.sb.width)/2)}px`,
                             left: `${((this.width-this.sbscale*this.sb.height)/2)}px`,
                             width : `${this.sbscale*this.sb.height}px`,
@@ -858,7 +882,7 @@ class ytzVideo extends ytzItem {
                         });
                     break;
                     case 2:
-                        ut.css(`#inner_${this.item.id}`,{
+                        ut.css(`#inner_${this.item.key}`,{
                             bottom: `${((this.width*wapp.cfg.video.previewHeight-this.sbscale*this.sb.height)/2)}px`,
                             right: `${((this.width-this.sbscale*this.sb.width)/2)}px`,
                             width: `${this.sbscale*this.sb.width}px`,
@@ -868,7 +892,7 @@ class ytzVideo extends ytzItem {
                         });
                     break;
                     default:
-                        ut.css(`#inner_${this.item.id}`,{
+                        ut.css(`#inner_${this.item.key}`,{
                             bottom: `${((this.width*wapp.cfg.video.previewHeight-this.sbscale*this.sb.width)/2)}px`,
                             right: `${((this.width-this.sbscale*this.sb.height)/2)}px`,
                             width: `${this.sbscale*this.sb.height}px`,
@@ -883,7 +907,13 @@ class ytzVideo extends ytzItem {
     }
 
     // thumb move over preview event
+    // event <object> mouse event object
     thumbmove(event) {
+        if (!this.chanHL) {
+            wapp.bgc(this.item.cid,'rgb(0,127,127)');
+            wapp.bgi(this.item.id,'rgb(127,255,255)');
+            this.chanHL = true;
+        }
         if (this.sb) {
             if (this.previewType === 'images') {
                 if (this.sb.frames<0) {
@@ -897,17 +927,18 @@ class ytzVideo extends ytzItem {
     }
 
     // thumb leave preview event
-    thumbleave(event) {
-        wapp.rgb(this.item.channel);
+    thumbleave() {
+        wapp.rgb(this.item.cid);
+        this.chanHL = false;
         if (this.sb) {
             if (this.previewType === 'images') {
-                ut.attr(`#thumb_${this.item.id}`,{
+                ut.attr(`#thumb_${this.item.key}`,{
                     'class': `static${this.rotation}`,
-                    src:`${wapp.cfg.video.imageUrl}/${this.item.id}/${wapp.cfg.video.defaultImage}`
+                    src:`${wapp.cfg.video.imageUrl}/${this.item.name}/${wapp.cfg.video.defaultImage}`
                 });
 
                 if (this.rotation % 2) {
-                    ut.css(`#thumb_${this.item.id}`,{
+                    ut.css(`#thumb_${this.item.key}`,{
                         width: `${wapp.cfg.video.thumb0WidthX * this.width}px`,
                         height: `${this.width}px`,
                         left: `${wapp.cfg.video.thumb0Left}%`,
@@ -916,7 +947,7 @@ class ytzVideo extends ytzItem {
                         bottom: 'auto'
                     });
                 } else {
-                    ut.css(`#thumb_${this.item.id}`,{
+                    ut.css(`#thumb_${this.item.key}`,{
                         width: `${this.width}px`,
                         height: `${(this.width * wapp.cfg.video.thumb1WidthX)}px`,
                         left: `${wapp.cfg.video.thumb1Left}%`,
@@ -926,13 +957,13 @@ class ytzVideo extends ytzItem {
                     });
                 }
 
-                ut.css(`#inner_${this.item.id}`,{
+                ut.css(`#inner_${this.item.key}`,{
                     top: '0px',
                     left: '0px',
                     width: `${this.width}px`,
                     height: `${this.width}px`
                 });
-                //ut.html(`#dur_${this.item.id}`,ut.secDur(this.item.duration));
+                //ut.html(`#dur_${this.item.key}`,ut.secDur(this.item.duration));
                 this.lastPage = -1;
             }
         }
@@ -944,9 +975,9 @@ class ytzVideo extends ytzItem {
             this.rotation % 2,
             ht.img(
                 {
-                    id: `thumb_${this.item.id}`,
+                    id: `thumb_${this.item.key}`,
                     'class': `static${this.rotation}`,
-                    src: `${wapp.cfg.video.imageUrl}/${this.item.id}/${wapp.cfg.video.defaultImage}`,
+                    src: `${wapp.cfg.video.imageUrl}/${this.item.name}/${wapp.cfg.video.defaultImage}`,
                     style: ht.css(
                         {
                             width: `${wapp.cfg.thumb0WidthX * this.width}px`,
@@ -959,9 +990,9 @@ class ytzVideo extends ytzItem {
             ),
             ht.img(
                 {
-                    id: `thumb_${this.item.id}`,
+                    id: `thumb_${this.item.key}`,
                     'class': `static${this.rotation}`,
-                    src: `${wapp.cfg.video.imageUrl}/${this.item.id}/${wapp.cfg.video.defaultImage}`,
+                    src: `${wapp.cfg.video.imageUrl}/${this.item.name}/${wapp.cfg.video.defaultImage}`,
                     style: ht.css(
                         {
                             width: `${this.width}px`,
@@ -977,16 +1008,20 @@ class ytzVideo extends ytzItem {
 
     // show thumbnail image or manual storyboard
     playImages() {
+        this.loaded = false;
         this.previewType = 'images';
         clearInterval(this.playTimer);
+        this.vid = null;
         this.lastPage = -1;
-        ut.html(`#inner_${this.item.id}`,this.thumb);
+        ut.html(`#inner_${this.item.key}`,this.thumb);
+        this.loaded = true;
     }
 
     // play animated storyboard
     playStoryboards() {
+        this.playImages();
+        this.loaded = false;
         if (this.sb) {
-            this.playImages();
             this.thumbenter(null);
             this.previewType = 'storyboards';
             if (this.sb.frames<0) {
@@ -1012,94 +1047,114 @@ class ytzVideo extends ytzItem {
                 },
                 this.gap
             );
-        } else if (this.can('video')) {
-            this.playVideos();
-        } else {
-            this.playImages();
         }
+        this.loaded = true;
     }
 
     // play video
     playVideos() {
         if (this.can('video')) {
-            this.previewType = 'videos';
-            clearInterval(this.playTimer);
-            if (!this.sources.length) {
-                this.sources = '';
-                for (let i = this.item.meta.videoStreams.length-1; i >= 0; i--) {
-                    let s = this.item.meta.videoStreams[i];
-                    let a = {
-                        src: s.url,
-                        type: `video/${s.container}`
+            if (!this.vid || (this.vid && this.loaded) ) { // ignore if already playing
+                this.loaded = false;
+                try {
+                    this.previewType = 'videos';
+                    clearInterval(this.playTimer);
+                    //if (!this.sources.length) {
+                        /*
+                        this.sources = '';
+                        for (let i = this.item.videoStreams.length-1; i >= 0; i--) {
+                            let s = this.item.videoStreams[i];
+                            let a = {
+                                src: `${s.url}&range=0-${s.size}`,
+                                type: `video/${s.container}`
+                            }
+                            a.onerror = ht.evt('wapp.videoPreviewError',this.item.key,i);
+                            this.sources += ht.source(a);
+                        }
+                        */
+                       let i = this.item.videoStreams.length-1;
+                       if (i>=0) {
+                        let s = this.item.videoStreams[i];
+                        let a = {
+                            src: `${s.url}&range=0-${s.size}`,
+                            type: `video/${s.container}`
+                        }
+                        a.onerror = ht.evt('wapp.videoPreviewError',this.item.key,i);
+                        this.sources = ht.source(a);
+                       }
+                    //}
+                    if (this.sources.length) {
+                        ut.html(`#inner_${this.item.key}`,
+                            ht.video(
+                                {
+                                    id: `video_${this.item.key}`,
+                                    'class': `rvideo${this.rotation}`,
+                                    muted : wapp.cfg.video.previewMuted,
+                                    loop : wapp.cfg.video.previewLoop,
+                                    autoplay : wapp.cfg.video.previewAutoplay,
+                                    width: `${this.width}px`,
+                                    height: `${this.width*wapp.cfg.video.previewHeight}px`
+                                },
+                                this.sources
+                            )
+                        );
+                        this.vid = document.getElementById(`video_${this.item.key}`);
+                        this.vid.playbackRate = Math.min(
+                            wapp.cfg.video.maxPlayback,
+                            Math.max(
+                                wapp.cfg.video.minPlayback,
+                                Math.sqrt(
+                                    this.item.duration / wapp.cfg.video.divPlayback
+                                )
+                            )
+                        );
+                        this.playTimer = setInterval(
+                            ()=>{
+                                if (this.vid) ut.css(
+                                    `#trk_${this.item.key}`,
+                                    {width: `${this.vid.currentTime*100/this.vid.duration}%`}
+                                );
+                                if (this.vid.paused) this.vid.play();
+                                if (this.vid.currentTime>0) this.loaded = true;
+                            },
+                            wapp.cfg.video.trackDelayMS
+                        );
                     }
-                    if (!i) a.onerror = ht.evt('wapp.videoPreviewError',this.item.id);
-                    this.sources += ht.source(a);
+                } catch(e) {
+                    console.log(e);
                 }
             }
-            if (this.sources.length) {
-                ut.html(`#inner_${this.item.id}`,
-                    ht.video(
-                        {
-                            id: `video_${this.item.id}`,
-                            'class': `rvideo${this.rotation}`,
-                            muted : wapp.cfg.video.previewMuted,
-                            loop : wapp.cfg.video.previewLoop,
-                            autoplay : wapp.cfg.video.previewAutoplay,
-                            width: `${this.width}px`,
-                            height: `${this.width*wapp.cfg.video.previewHeight}px`
-                        },
-                        this.sources
-                    )
-                );
-                var vid = document.getElementById(`video_${this.item.id}`);
-                vid.playbackRate = Math.min(
-                    wapp.cfg.video.maxPlayback,
-                    Math.max(
-                        wapp.cfg.video.minPlayback,
-                        Math.sqrt(
-                            this.item.duration / wapp.cfg.video.divPlayback
-                        )
-                    )
-                );
-                this.playTimer = setInterval(
-                    ()=>{
-                        ut.css(`#trk_${this.item.id}`,{width: `${vid.currentTime*100/vid.duration}%`});
-                    },
-                    wapp.cfg.video.trackDelayMS
-                );
-            }
-        } else if (this.sb) {
-            this.playStoryboards();
         } else {
-            this.playImages();
+            this.playStoryboards();
         }
 	}
 
     // get current rotation 0 (0 deg) , 1 (90 deg AC), 2 (180 deg AC) or 3 (270 deg AC)
     get rotation() {
-        if (!this.item.meta.rotation) this.item.meta.rotation = 0;
-        return this.item.meta.rotation;
+        return this.item.rotation;
     }
 
-    // change current rotation to value
+    // set preview/image/video anti-clockwise rotation
+    // value <int> rotation value (0 - 0 deg, 1 - 90 deg, 2 - 180 deg, 3 - 270 deg)
     set rotation(value) {
-        this.item.meta.rotation = value;
+        this.item.rotation = value;
         (this.sb && value % 2) ? this.sbscale *= this.sb.height/this.sb.width :
             this.sbscale *= this.sb.width/this.sb.height;
-        this.set();
+        this.set('rotation',value);
     }
 
     // rotate the image/storyboard/video by 90 degrees anti-clockwise
     rotate() {
         this.rotation === 3 ? this.rotation = 0 : this.rotation++;
         this.lastPage = -1;
-        this.redisplay();
+        this.redisplay(true);
     }
 
     // clear the video item
     clear() {
         super.clear();
         clearInterval(this.playTimer);
+        this.vid = null;
     }
 
     // reset the preview
@@ -1112,7 +1167,7 @@ class ytzVideo extends ytzItem {
             this.playVideos()
         } else if (this.showPreview === 'any') {
             if (this.previewType !== 'info') {
-                if (this.item.status === 'VIP' && this.can('video')) {
+                if (this.item.status === 'VIP') {
                     this.playVideos();
                 } else {
                     if (this.previewType === 'videos') {
@@ -1127,11 +1182,26 @@ class ytzVideo extends ytzItem {
         }
     }
 
-    // redisplay the item
-    redisplay() {
-        if (this.showPreview === 'any') this.previewType = this.initPreview;
-        ut.replaceWith(`#div_${this.item.id}`,this.html);
-        this.repreview();
+    // redisplay the item if info is being shown or the current preview is suboptimal
+    redisplay(force = false) {
+        let doit = !this.loaded || force;
+        if (this.showPreview === 'any') {
+            if (this.previewType === 'storyboards') {
+               if (this.initPreview === 'videos') doit = true;
+            } else if (this.previewType === 'images') {
+               if (this.initPreview === 'videos') doit = true;
+               if (this.initPreview === 'storyboards') doit = true;
+            }
+            if (this.previewType === 'info') doit = true;
+        }
+        if (this.showPreview === 'info') doit = true;
+        if (doit) {
+            if (this.previewType !== 'info') this.previewType = this.initPreview;
+            ut.replaceWith(`#div_${this.item.key}`,this.html);
+            clearInterval(this.playTimer);
+            this.vid = null;
+            if (this.previewType !== 'info') this.repreview();
+        }
     }
 
 }

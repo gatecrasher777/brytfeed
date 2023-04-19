@@ -1,7 +1,5 @@
-// ytzero client javascript index
-// repository https://github.com/gatecrasher777/ytzero
-// (c) 2021/2 gatecrasher777
-// MIT Licence
+/* brytfeed - (c) 2023 Gatecrasher777 */
+/* main client application */
 
 const socket = io.connect();
 const ht = htflowInit();
@@ -14,8 +12,9 @@ const wapp = new Wapp();
 const response = [
 	'updated',
 	'start',
-	'open',
+	'create',
 	'bw',
+	'stats',
 	'topicmenu',
 	'searchmenu',
 	'channelmenu',
@@ -37,6 +36,6 @@ response.forEach( e => {
 
 // add event listeners
 window.onresize = wapp.resize.bind(wapp);
-document.onselectstart = () => { return wapp.selectOK; }
+//document.onselectstart = () => { return wapp.selectOK; }
 document.addEventListener('keydown', wapp.keyDown.bind(wapp));
 document.addEventListener('keyup', wapp.keyUp.bind(wapp));

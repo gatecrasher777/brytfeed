@@ -1,22 +1,19 @@
-// ytzero client web application object class
-// repository https://github.com/gatecrasher777/ytzero
-// (c) 2021/2 gatecrasher777
-// MIT Licence
+/* brytfeed - (c) 2023 Gatecrasher777 */
+/* client web application module */
 
 class Wapp {
 
 	// Web app constructor
 	constructor() {
 		// global variables
-		this.topicId = 'all';
-		this.searchId = 'any';
-		this.channelId = 'any';
+		this.topicId = 0;
+		this.searchId = 0;
+		this.channelId = 0;
 		this.mode = 'video';
-		this.state = 'result';
+		this.state = 'pending';
 		this.wanted = 0;
 		this.previewTypes = ['info','images','storyboards','hybrid','videos'];
 		this.embedded = false;
-		this.autoLoad = false;
 		this.disabled = false;
 		this.showing = 'menu1';
 		this.topiclist = [];
@@ -24,16 +21,19 @@ class Wapp {
 		this.channellist = [];
 		this.shown = [];
 		this.response = [];
+		this.nextResponse = [];
+		this.nextChanResponse = [];
+		this.chanResponseItem = {};
+		this.nextChanResponseItem = {};
 		this.itemx = {};
 		this.list = {
-			topic : 'all',
+			tid : 0,
 			vstates : [],
-			search : 'any',
-			channel : 'any',
-			video : 'any',
+			sid : 0,
+			cid : 0,
+			video : 0,
 			type : 'video',
-			chanMode: false,
-			cid: ''
+			chanMode: false
 		},
 		this.page = 0;
 		this.refreshTime = null;
@@ -43,17 +43,22 @@ class Wapp {
 		this.restoreMode = 'video';
 		this.restorePage = 0;
 		this.restoreState = 'result';
-		this.chanMode = false;
 		this.chanList = [];
 		this.dcb = [];
 		this.filtered = 0;
+		this.nextChanFiltered = 0;
 		this.total = 0;
 		this.editing = false;
 		this.shiftPressed = false;
 		this.ctrlPressed = false;
+		this.altPressed = false;
 		this.selectOK = false;
 		this.reembedded = false;
 		this.volumeLevel = 0;
+		this.stats = {};
+		this.lastData = {};
+		this.content = '#content';
+	//	this.linkTimer = null;
 	}
 
 	// start the client step 1
@@ -63,6 +68,7 @@ class Wapp {
 	}
 
 	// start the client step 2
+	// data <object> cfg data
 	startcfg(data) {
 		this.setcfg(data);
 		this.volumeLevel = this.cfg.video.embedVolume;
@@ -73,56 +79,145 @@ class Wapp {
 		this.statusMsg('');
 	}
 
-	// send message to server
+	// send request to server
+	// tag <string> request tag
+	// data <object> request data
 	emit(tag,data) {
 		socket.emit(tag,data);
 	}
 
-	// a visible item has been updated, redisplay
+	// a visible item has been updated, redisplay is shown
+	// data <object> item update data
 	setUpdate(data) {
-		let x = this.itemx[data.item.id];
-		if (['hour','day'].includes(data.type)) data.type = 'search';
-		if (x !== undefined && x.type === data.type) {
+		let x = this.itemx[data.item.key];
+		if (x && x.type === data.type) {
 			x.item = data.item;
 			x.redisplay();
+		} else if (this.nextResponse.length) {
+			let i = 0;
+			let done = false;
+			while (!done) {
+				if (data.item.key === this.nextResponse[i].key) {
+					done = true;
+					this.nextResponse[i] = data.item;
+				}
+				i++;
+				if ( i >= this.nextResponse.length ) done = true;
+			}
+		} else if (this.nextChanResponse.length) {
+			if (data.item.key = this.nextChanResponseItem.key) {
+				this.nextChanResponseItem = data.item;
+			} else {
+				let i = 0;
+				let done = false;
+				while (!done) {
+					if (data.item.key === this.nextChanResponse[i].key) {
+						done = true;
+						this.nextChanResponse[i] = data.item;
+					}
+					i++;
+					if ( i >= this.nextChanResponse.length ) done = true;
+				}
+			}
+		}
+	}
+
+	// a visible item has been reveiwed, update reviewables & redisplay if shown
+	// data <object> item review data
+	setReview(data) {
+		let x = this.itemx[data.item.key];
+		if (x && x.type === data.type) {
+			Object.keys(data.item).forEach(k => {
+				x.item[k] = data.item[k];
+			});
+			x.redisplay();
+		} else if (this.nextResponse.length) {
+			let i = 0;
+			let done = false;
+			while (!done) {
+				let item = this.nextResponse[i];
+				if (data.item.key === item.key) {
+					done = true;
+					Object.keys(data.item).forEach(k => {
+						item[k] = data.item[k];
+					});
+				}
+				i++;
+				if ( i >= this.nextResponse.length ) done = true;
+			}
+		} else if (this.nextChanResponse.length) {
+			if (data.item.key = this.nextChanResponseItem.key) {
+				Object.keys(data.item).forEach(k => {
+					this.nextChanResponseItem[k] = data.item[k];
+				});
+			} else {
+				let i = 0;
+				let done = false;
+				while (!done) {
+					let item = this.nextChanResponse[i];
+					if (data.item.key === item.key) {
+						done = true;
+						Object.keys(data.item).forEach(k => {
+							item[k] = data.item[k];
+						});
+					}
+					i++;
+					if ( i >= this.nextChanResponse.length ) done = true;
+				}
+			}
 		}
 	}
 
 	// show download progress
+	// data <object> download progress data
 	dlProgress(data) {
-		let v = this.itemx[data.id];
-		if (v !== undefined ) {
+		let v = this.itemx[data.key];
+		if (v) {
 			v.item.state = 'download..';
-			if (!ut.exists(`#prg_${v.item.id}`)) v.redisplay();
-			ut.css(`#prg_${v.item.id}`,{width: data.prg});
+			if (!ut.exists(`#prg_${data.key}`)) v.redisplay(true);
+			ut.css(`#prg_${data.key}`,{width: data.prg});
 		}
 	}
 
 	// a download completed, redisplay
+	// data <object> downloaded data
 	dlCompleted(data) {
-		let v = this.itemx[data.item.id];
-		if (v !== undefined ) {
+		let v = this.itemx[data.key];
+		if (v) {
 			v.item = data.item;
-			ut.remove(`#prg_${v.item.id}`);
-			v.redisplay();
+			ut.remove(`#prg_${data.key}`);
+			v.redisplay(true);
 		}
 	}
 
 	// a requested list has been received
+	// data <object> item list data
 	itemList(data) {
 		if (this.showing === `${data.type}List` && data.got === this.wanted) {
-			this.response = data.list;
-			this.total = data.total;
-			this.filtered = data.filtered;
-			data.next && this.response.length ? this.next(data.type) : this.load();
-		} else {
+			if (data.content === 'prechan') {
+				this.nextChanResponse = structuredClone(data.list);
+				this.nextChanResponseItem = data.chanItem;
+				this.nextChanFiltered = data.filtered;
+				ut.removeAttr('#pgdnbut','disabled');
+				this.lastData = data;
+			} else if (data.content === 'prefetch') {
+				this.nextResponse = structuredClone(data.list);
+				ut.removeAttr('#pgdnbut','disabled');
+				this.lastData = data;
+			} else {
+				this.response = structuredClone(data.list);
+				this.chanResponseItem = data.chanItem;
+				this.filtered = data.filtered;
+				data.next && this.response.length ? this.next(data.type) : this.load(data);
+			}
 		}
 	}
 
 	// set the received configuration
+	// data <object> condifiguration data
 	setcfg(data) {
 		this.cfg = data.cfg;
-		this.list.topic = this.topicId;
+		this.list.tid = this.topicId;
 		this.disabled = false;
 	}
 
@@ -150,65 +245,66 @@ class Wapp {
 	// determine effective item object class
 	get itemObject() {
 		switch(this.mode) {
-			case 'video': return ytzVideo;
-			case 'search': return ytzSearch;
-			case 'channel': return ytzChannel;
-			case 'topic': return ytzTopic;
-			default: return ytzItem;
+			case 'video': return Video;
+			case 'search': return Search;
+			case 'channel': return Channel;
+			case 'topic': return Topic;
+			default: return Item;
 		}
 	}
 
 	// get display items quantity limit
 	get limit() {
+		this.scale(0);
 		let t = this.subtype;
 		let cl = this.itemObject;
 		let dum = new cl({},t.scale);
 		let cw = document.body.clientWidth;
-		let ch = ut.outerHeight('#content');
 		let sw = dum.padding + dum.margin;
 		let iw = dum.width + 2 * sw;
-		let ih = cl.calc_height(t.scale) + 2 * sw;
 		let pr = Math.max(1, Math.floor((cw-sw) / iw));
-		let pc = Math.max(1, Math.floor(ch / ih));
+		let pc = t.rows;
 		let n = parseInt(t.display);
-		let pl = '0px';
-		if (!n) {
-			n = pr * pc;
-			pl  = `${(ch - pc * ih) / 2}px`
-		}
-		ut.css('#content', {
+		if (!n) n = pr * pc;
+		ut.css(this.content, {
 			'padding-left': `${(cw - pr * iw) / 2}px`,
-			'padding-top': pl
+			'padding-top': '0px'
 		});
 		if (!n) n = 1;
 		return n;
 	}
 
-	// add an id to the "don't come back" list
-	dcbAdd(id) {
-		this.dcb.push(id);
+	// add a key to the "don't come back" list
+	// key <string> item key
+	dcbAdd(key) {
+		this.dcb.push(key);
 	}
 
-	// remove an id from the "don't come back" list
-	dcbRemove(id) {
-		let f = this.dcb.indexOf(id);
+	// remove a key from the "don't come back" list
+	// key <string> item key
+	dcbRemove(key) {
+		let f = this.dcb.indexOf(key);
 		if ( f >= 0 ) this.dcb.splice(f, 1);
 	}
 
 	// move to next channel in channel mode
+	// type <string> item type, video or channel
 	next(type) {
-		let it = type === 'video'? new ytzVideo(this.response[0], 1) :
-			new ytzChannel(this.response[0],1);
-		this.itemx[it.item.id] = it;
+		let it = type === 'video'? new Video(this.response[0], 1) :
+			new Channel(this.response[0],1);
+		this.itemx[it.item.key] = it;
 		for (let i = 1; i<this.response.length; i++) {
-			it = new ytzVideo(this.response[i], 1);
-			this.itemx[it.item.id] = it;
+			it = new Video(this.response[i], 1);
+			this.itemx[it.item.key] = it;
 		}
-		this.chan(null,it.item.id);
+		this.chan(null,it.item.key);
 	}
 
 	// render a menu item
-	menuItem(tag,level,prefix) {
+	// tag <string> menu tag
+	// level <int> menu level
+	// prefix <string> parent menu tag
+	menuItem(tag, level, prefix) {
 		let state = (tag[0] === '$');
 		let items = (tag[0] === '!');
 		let filter = (tag[0] === '*');
@@ -246,8 +342,8 @@ class Wapp {
 			);
 			this.emit(`${tag}menu`,{
 				cb:`${tag}menu`,
-				topic: this.topicId,
-				search: this.searchId
+				tid: this.topicId,
+				sid: this.searchId
 			});
 		} else if (state) {
 			tag = tag.substr(1);
@@ -337,6 +433,9 @@ class Wapp {
 	}
 
 	// render the menu
+	// tags <string array> submenu tags
+	// level <int> menu level
+	// prefix <string> parent menu tag
 	menu(tags,level,prefix) {
 		return ht.forEach(
 			tags,
@@ -347,6 +446,7 @@ class Wapp {
 	}
 
 	// receive list and show topic dropdown
+	// data <object> topic menu list
 	topicmenu(data) {
 		this.topiclist = data.list;
 		ut.html('#topicmenuselect',
@@ -354,7 +454,7 @@ class Wapp {
 				this.topiclist,
 				e => {
 					let g = {
-						value: e.id.toString()
+						value: e.id
 					};
 					if (e.id === this.topicId) g.selected = 'selected';
 					return ht.option(
@@ -367,6 +467,7 @@ class Wapp {
 	}
 
 	// receive list and show search dropdown
+	// data <object> search menu list
 	searchmenu(data) {
 		this.searchlist = data.list;
 		ut.html('#searchmenuselect',
@@ -374,7 +475,7 @@ class Wapp {
 				this.searchlist,
 				e => {
 					let g = {
-						value: e.id.toString()
+						value: e.id
 					};
 					if (e.id === this.searchId) g.selected = 'selected';
 					return ht.option(
@@ -387,6 +488,7 @@ class Wapp {
 	}
 
 	// receive list and show channel dropdown
+	// data <object> channel menu list
 	channelmenu(data) {
 		this.channellist = data.list;
 		ut.html('#channelmenuselect',
@@ -408,28 +510,28 @@ class Wapp {
 
 	// repond to topic/search/channel dropdown choices.
 	selectTSC() {
-		this.list.topic = ut.val('#topicmenuselect');
-		if (this.topicId !== this.list.topic) {
-			this.topicId = this.list.topic;
-			this.list.search = this.searchId = 'any';
+		this.list.tid = ut.val('#topicmenuselect');
+		if (this.topicId !== this.list.tid) {
+			this.topicId = this.list.tid;
+			this.list.sid = this.searchId = 0;
 			this.searchmenu(
 				{list:
 					[
 						{
-							id:'any',
-							name:'any'
+							id: 0,
+							name: 'any'
 						}
 					]
 				}
 			);
-			this.list.channel = this.channelId = 'any';
+			this.list.cid = this.channelId = 0;
 			this.channelmenu(
 				{
 					list:
 					[
 						{
-							id:'any',
-							author:'any'
+							id: 0,
+							author: 'any'
 						}
 					]
 				}
@@ -437,22 +539,22 @@ class Wapp {
 			this.updcfg();
 			this.emit('searchmenu',{
 				cb:'searchmenu',
-				topic: this.topicId,
-				search: this.searchId
+				tid: this.topicId,
+				sid: this.searchId
 			});
 		} else {
-			this.list.search = ut.val('#searchmenuselect');
-			if (this.searchId !== this.list.search) {
-				this.searchId = this.list.search;
-				this.list.channel = this.channelId = 'any';
-				ut.val('#channelmenuselect','any');
+			this.list.sid = ut.val('#searchmenuselect');
+			if (this.searchId !== this.list.sid) {
+				this.searchId = this.list.sid;
+				this.list.cid = this.channelId = 0;
+				ut.val('#channelmenuselect',0);
 				this.channelmenu(
 					{
 						list:
 						[
 							{
-								id:'any',
-								author:'any'
+								id: 0,
+								author: 'any'
 							}
 						]
 					}
@@ -460,17 +562,19 @@ class Wapp {
 				this.updcfg();
 				this.emit('channelmenu',{
 					cb:'channelmenu',
-					topic: this.topicId,
-					search: this.searchId
+					tid: this.topicId,
+					sid: this.searchId
 				});
 			} else {
-				this.list.channel = this.channelId = ut.val('#channelmenuselect');
+				this.list.cid = this.channelId = ut.val('#channelmenuselect');
 			}
 		}
 		this.refreshContent(true,true,0);
 	}
 
 	// reset the menu
+	// level <int> menu level
+	// page <int> list page number, zero based
 	resetMenu(level, page = 0) {
 		clearTimeout(this.refreshTime);
 		this.refreshTime = null;
@@ -496,13 +600,14 @@ class Wapp {
 				ut.css('#options',{'display':'none'});
 				ut.css('#controls',{'display':'none'});
 				this.response = [];
+				this.chanResponseItem = {};
 				this.shown = [];
-				this.total = this.filtered = 0;
+				this.filtered = 0;
 				ut.attr('.navbut',{'disabled':'disabled'})
 				this.showing = '';
 				this.page = page;
-				this.clearItems(false);
-				ut.html('#content','');
+				this.clearItems();
+				ut.html(this.content,'');
 				this.statusNav('');
 			case 2:
 				ut.css('#options',{'display':'none'});
@@ -512,41 +617,43 @@ class Wapp {
 		}
 	}
 
-	// add a visual element
+	// add a visual element to contents
+	// element <string> html element descripter
 	nextLevel(element) {
 		ut.css(element,{'display':'block','top': `${this.nexttop}px`});
 		this.nexttop += ut.prop(element,'offsetHeight');
-		ut.css('#content',{'top': `${this.nexttop}px`});
+		ut.css(this.content,{'top': `${this.nexttop}px`});
 	}
 
-	// hide a visual element
+	// hide a visual element from contents
+	// element <string> html element descripter
 	prevLevel(element) {
 		this.nexttop -= ut.prop(element,'offsetHeight');
 		ut.css(element,{'display':'none'});
-		ut.css('#content',{'top': `${this.nexttop}px`});
+		ut.css(this.content,{'top': `${this.nexttop}px`});
 	}
 
-	// clear all display items with option to save and undo
-	clearItems(save) {
-		if (save) this.undoData = [];
+	// clear all display items
+	clearItems() {
 		Object.keys(this.itemx).forEach( (k)=>{
-			if (save) this.undoData.push({
-				type: this.itemx[k].type,
-				item: ut.jp(ut.js(this.itemx[k].item))
-			});
 			this.itemx[k].clear();
 		});
+		//ut.remove(`.preloadvideo`);
 	}
 
 	// receive and display server bandwidth
+	// data <object> bandwidth data
 	setBandwidth(data) {
+		let x ='';
+		if (data.wl !== undefined && !isNaN(data.wl)) {
+			x = 'L'+data.wl.toFixed(2)+' - ';
+		}
 		if (this.bw !== undefined) {
 			let n = data.bw;
 			let o = this.bw;
 			let t = n.search+n.channel+n.video+n.download-o.search-o.channel-o.video-o.download;
-			let x = '0k/s';
 			if (t) {
-				x = `${ut.qFmt(t * 1000 / this.cfg.client.bandwidthCycle)}/s - `;
+				x += `${ut.qFmt(t * 1000 / this.cfg.client.bandwidthCycle)}/s - `;
 				let xx = {};
 				let tt = 0;
 				Object.keys(data.bw).forEach((k)=>{
@@ -564,18 +671,30 @@ class Wapp {
 						x += xx[k].toString()+k[0]+' ';
 					}
 				});
+			} else {
+				x += '0k/s';
 			}
 			this.statusUpd(x);
 		}
 		this.bw = data.bw;
 	}
 
+	// receive database stats
+	// data <object> statistics data
+	setStatistics(data) {
+		this.statistics = data.stats;
+	}
+
 	// refresh visual item list
+	// redisplay <boolean> redisplay list elements if true
+	// update <boolean> update the list if true
+	// page <int> show page number
+	// next <boolean> move to next item in channel mode
 	refreshContent(redisplay, update, page = this.page, next = false) {
 		if (this.showing.length && !this.embedded) {
 			this.wanted++;
-			this.invalidate = true;
 			clearTimeout(this.refreshTime);
+			//clearTimeout(this.linkTimer);
 			let data = this.list;
 			data.got = this.wanted;
 			data.sort = this.itemSortMethod();
@@ -586,32 +705,71 @@ class Wapp {
 			data.update = update;
 			data.dcb = this.dcb;
 			data.next = next;
+			data.content = 'content';
+			data.ids = [];
+			this.response = data.list = [];
 			if (update) this.dcb = [];
 			this.emit('list', data);
 			if (redisplay) {
-				this.clearItems(false);
+				this.clearItems();
 				this.shown = [];
 				this.statusNav('fetching data...');
 			}
-			this.refreshTime = setTimeout(this.refreshContent.bind(this),this.cfg.client.refreshCycle,false,true);
+			if (this.subtype.autoLoad) {
+				this.refreshTime = setTimeout(this.refreshContent.bind(this),this.cfg.client.refreshCycle,false,true);
+			}
+		}
+	}
+
+	// prefetch next page
+	prefetchContent(data) {
+		if (this.showing.length && !this.embedded) {
+			this.wanted++;
+			data.page ++;
+			data.update = false;
+			data.next = false;
+			data.got = this.wanted;
+			data.content = 'prefetch';
+			this.nextResponse = data.list = [];
+			this.emit('list', data);
+		}
+	}
+
+	// prefetch next page
+	preChanContent(data) {
+		if (this.showing.length && !this.embedded) {
+			this.wanted++;
+			data.page = 0;
+			data.update = true;
+			//data.next = false;
+			data.sort =  this.itemSortMethod(0);
+			data.filter = this.itemFilterMethod(0);
+			data.showing = this.showing;
+			data.chanMode = true;
+			data.got = this.wanted;
+			data.content = 'prechan';
+			this.nextChanResponse = data.list = [];
+			this.emit('list', data);
 		}
 	}
 
 	// get the ordered value of an item in the list
+	// item <object> item data
 	mark(item) {
 		let s = this.subtype.sort;
 		let i = this.cfg.video.sortList.findIndex(e=>{return s === e.tag;});
 		if (i < 0) i = 0;
 		let o = this.cfg.video.sortList[i];
 		let z = o.field.split('.');
-		if (z[0] === 'meta') {
-			return item.meta[z[1]];
-		} else {
-			return item[z[0]];
+		let v = item;
+		for (let j = 0; j< z.length; j++) {
+			v = v[z[j]];
 		}
+		return v;
 	}
 
 	// formatted display of an ordered value
+	// mark <var> value to format
 	markStr(mark) {
 		if (mark === null) return '';
 		let s = this.subtype.sort;
@@ -630,7 +788,9 @@ class Wapp {
 		}
 	}
 
-	// whether an item should come before an ordered value
+	// whether an item's order should come before a comparable value
+	// item <object> item data
+	// mark <var> value to compare
 	before(item, mark) {
 		if (mark === null) return false;
 		let d = this.subtype.dir;
@@ -641,43 +801,105 @@ class Wapp {
 			return (v > mark);
 		}
 	}
+/*
+	link() {
+		this.nextResponse.forEach(e => {
+			let type = this.subtype.preview === 'hybrid' ?
+							e.duration <= this.cfg.client.hybridDuration ?
+								'videos' :
+								'storyboards' :
+							this.subtype.preview;
+			if (type === 'videos')	{
+				let vs = e.videoStreams;
+				if (vs && vs.length) {
+					let s = vs[vs.length-1];
+					let html = ht.video(
+						{
+							id: `preload_video_${e.id}`,
+							'class': 'preloadvideo',
+							muted : '1',
+							autoplay : '1',
+						},
+						ht.source({
+							src: `${e.url}&range=0-${e.size}`,
+							type: e.type,
+						})
+					)
+					ut.append(this.content,html);
+				}
+			}
+		});
+	}
 
+	linkReady() {
+		let okay = this.mode === 'video' && this.nextResponse.length;
+		let keys = Object.keys(this.itemx);
+		let i = 0;
+		while (okay && i < keys.length) {
+			if (!this.itemx[keys[i]].loaded) okay = false;
+			i++;
+		}
+		okay ? this.link() : this.linkTimer = setTimeout(this.linkReady.bind(this),1000);
+	}
+*/
 	// load items (if necessary) from the list reponse
-	load() {
+	load(data) {
+		this.lastData = data;
 		let t = this.subtype;
 		let isch = false;
 		let cl = this.itemObject;
 		let lim = this.limit;
+		let plim = this.list.chanMode ? lim - 1 : lim;
+		let llim = (this.filtered - 1) % plim;
 		let cur = Object.keys(this.itemx).length;
-		let maxpage = Math.floor((this.filtered - 1) / lim);
+		let maxpage = Math.floor((this.filtered - 1) / plim);
 		if (this.page > maxpage) this.page = Math.max(0, maxpage);
-		let replace = this.autoLoad;
+		let replace = t.autoLoad;
+		if (this.page < maxpage && !t.autoLoad) {
+			this.prefetchContent(data);
+		} else {
+			if (this.mode === 'video' && this.page === maxpage && data.ids.length) {
+				this.emit('vidseen',{ids: data.ids});
+			}
+			this.nextResponse = [];
+		}
+		if (this.list.chanMode) {
+			if (!this.itemx[this.chanResponseItem.key]) {
+				let it = new Channel(this.chanResponseItem, t.scale);
+				ut.append(this.content, it.html);
+				this.itemx[it.item.key] = it;
+				this.shown.push(this.chanResponseItem.key);
+			} else {
+				let it = this.itemx[this.chanResponseItem.key];
+				it.item = this.chanResponseItem;
+			}
+		}
 		while (
 			this.response.length
 			&&
-			(cur<lim || replace)
+			(cur < plim || replace)
 			&& (
-				this.page<maxpage
+				this.page < maxpage
 				||
-				cur <= ((this.filtered - 1) % lim)
+				cur <= llim
 			)
 		) {
 			let i;
 			replace ? i = this.response.pop() : i = this.response.shift();
-			if (!this.itemx[i.id]) {
+			if (!this.itemx[i.key]) {
 				let it;
-				if (i.id.length === wapp.cfg.client.channelCodeLength && t !=='channel') {
-					it = new ytzChannel(i, t.scale);
+				if (i.type === 'channel' && t !=='channel') {
+					it = new Channel(i, t.scale);
 					isch = true;
 				} else {
 					it = new cl(i, t.scale);
 					isch = false;
 				}
-				replace ? ut.prepend('#content', it.html) : ut.append('#content', it.html)
-				this.itemx[it.item.id] = it;
+				replace ? ut.prepend(this.content, it.html) : ut.append(this.content, it.html)
+				this.itemx[it.item.key] = it;
 				cur++;
 				if (this.mode === 'video' && !isch) it.repreview();
-				replace ? this.shown.unshift(i.id) : this.shown.push(i.id);
+				replace ? this.shown.unshift(i.key) : this.shown.push(i.key);
 				while (cur > lim) {
 					let kill = this.shown.pop();
 					if (this.itemx[kill]) {
@@ -686,13 +908,13 @@ class Wapp {
 					}
 				}
 			} else {
-				let it = this.itemx[i.id];
+				let it = this.itemx[i.key];
 				it.item = i;
 			}
 		}
 		for (let i = this.response.length - 1; i >= 0; i--) {
 			let e = this.response[i];
-			if  (this.itemx[e.id]) this.response.splice(i,1);
+			if  (this.itemx[e.key]) this.response.splice(i,1);
 		}
 		let topMarker = null;
 		let bottomMarker = null;
@@ -705,11 +927,15 @@ class Wapp {
 				} else if (this.before(i,topMarker)) {
 					topMarker = this.mark(i);
 				}
-				if (!this.before(i,bottomMarker)) bottomMarker = this.mark(i);
+				if (bottomMarker == null) {
+					bottomMarker = this.mark(i);
+				} else if (!this.before(i,bottomMarker)) {
+					bottomMarker = this.mark(i);
+				}
 			}
 			if (this.itemx[k].type === 'video') {
-				let me = i.channel;
-				let nx = n < (a.length-1) ? this.itemx[a[n+1]].item.channel : '';
+				let me = i.cid;
+				let nx = n < (a.length-1) ? this.itemx[a[n+1]].item.cid : '';
 				this.itemx[k].refresh(me === pr, me === nx);
 				pr = me;
 			} else {
@@ -717,10 +943,10 @@ class Wapp {
 			}
 		});
 		this.emit('shown',this.shown);
-		if (this.total) {
-			this.statusNav(`${this.page * lim + 1}-${this.page * lim + cur} of ${this.filtered} of ${this.total}`)
+		if (this.filtered) {
+			this.statusNav(`${this.page * plim + 1}-${this.page * plim + cur} of ${this.filtered} of ${this.statistics.totals[this.mode+'Total']}`)
 		} else {
-			this.statusNav('no items');
+			this.statusNav(`no items of ${this.statistics.totals[this.mode+'Total']}`);
 		}
 		if (!this.filtered) {
 			maxpage = this.page = 0;
@@ -730,12 +956,14 @@ class Wapp {
 		!this.page ? ut.attr('#homebut',{'disabled':'disabled'}) : ut.removeAttr('#homebut','disabled');
 		!this.page ? ut.attr('#pgupbut',{'disabled':'disabled'}) : ut.removeAttr('#pgupbut','disabled');
 		this.page === maxpage ? ut.attr('#endbut',{'disabled':'disabled'}) : ut.removeAttr('#endbut','disabled');
-		this.page === maxpage ? ut.attr('#pgdnbut',{'disabled':'disabled'}) : ut.removeAttr('#pgdnbut','disabled');
+		this.page === maxpage ? ut.attr('#pgdnbut',{'disabled':'disabled'}) : replace ?
+			ut.removeAttr('#endbut','disabled') : ut.attr('#pgdnbut',{'disabled':'disabled'});
+		//this.linkReady();
 	}
 
 	// determine effective item sort method
-	itemSortMethod() {
-		let c = this.subtype;
+	itemSortMethod(index = -1) {
+		let c = (index >= 0) ? this.cfg.state[index] : this.subtype;
 		let i = this.cfg[this.mode].sortList.findIndex( e => { return e.tag === c.sort; });
 		if (i < 0) i = 0;
 		let y = this.cfg[this.mode].sortList[i].sql;
@@ -746,8 +974,8 @@ class Wapp {
 	}
 
 	// determine effective item filter method
-	itemFilterMethod() {
-		let c = this.subtype;
+	itemFilterMethod(index = -1) {
+		let c = (index >= 0) ? this.cfg.state[index] : this.subtype;
 		let h = [];
 		let x = [];
 		const add = type => {
@@ -763,7 +991,7 @@ class Wapp {
 		if (c.textFilter.length) {
 			let n = "''";
 			if (['topic','search'].includes(this.mode)) n = "'name'";
-			x.push(`texthas(${n},${this.mode}.data,'${c.textFilter}') = 1`);
+			x.push(`hasText(${n},${this.mode}.data,'${c.textFilter}') = 1`);
 		}
 		return {
 			clause: x.join(' AND '),
@@ -772,37 +1000,46 @@ class Wapp {
 	}
 
 	// generic data cell markup
-	cell(c,cl,pc) {
+	// content <string> html content
+	// className <string> class name for cell
+    // pcWidth <double> the width of the content as a percentage of total width
+	cell(content, className, pcWidth) {
 		let a = {
-			'class': cl,
+			'class': className,
 		}
-		if (pc) a.style = ht.css({width:`${pc}%`})
+		if (pcWidth) a.style = ht.css({width:`${pcWidth}%`})
 		return ht.div(
 			a,
-			c
+			content
 		);
 	}
 
 	// generic left floating markup
-	lcell(c,pc) {
-		return this.cell(c, 'lcell', pc);
+	// content <string> html content
+    // pcWidth <double> the width of the content as a percentage of total width
+	lcell(content, pcWidth) {
+		return this.cell(content, 'lcell', pcWidth);
 	}
 
 	// generic right floating markup
-	rcell(c,pc) {
-		return this.cell(c, 'rcell', pc);
+	// content <string> html content
+    // pcWidth <double> the width of the content as a percentage of total width
+	rcell(content, pcWidth) {
+		return this.cell(content, 'rcell', pcWidth);
 	}
 
 	// generic button
-	button(s,h) {
+	// action <string> action tage
+    // hint <string> hint for user
+	button(action, hint) {
 		return ht.button(
 			{
-				onclick: ht.evt(`wapp.${s}`),
-				title: `click to ${h}`
+				onclick: ht.evt(`wapp.${action}`),
+				title: `click to ${hint}`
 			},
 			ht.img(
 				{
-					src: `./img/${s}.png`,
+					src: imageRes[action],
 					height: wapp.cfg.client.buttonHeight,
 					width: wapp.cfg.client.buttonWidth
 				}
@@ -861,22 +1098,26 @@ class Wapp {
 				this.menu(['*status','*time','*view'],2,'channel')
 			);
 			this.nextLevel('#menu2');
-			this.channellistClick();
+			this.channellistClick(this,0);
 		}
 	}
 
 	// second level menu click - show channel list
-	channellistClick(app = this.cfg.engine, page = this.page,next = false) {
+	// app <object> web application
+	// page <int> list page number
+	// update <boolean> whether to update the channel list
+	// next <boolesn> whether to move to the next channel in channel mode
+	channellistClick(app = this.cfg.engine, page = this.page, update = true, next = false) {
 		if (!this.disabled || this.list.chanMode) {
 			this.resetMenu(1,page);
 			this.itemControls();
 			this.showing = 'channelList';
-			this.list.topic = app.topicId;
-			this.list.search = app.searchId;
-			this.list.channel = app.channelId;
+			this.list.tid = app.topicId;
+			this.list.sid = app.searchId;
+			this.list.cid = app.channelId;
 			this.list.vstates = [];
 			this.list.type = 'channel';
-			this.refreshContent(true,true,page,next);
+			this.refreshContent(true,update,page,next);
 		}
 	}
 
@@ -895,19 +1136,22 @@ class Wapp {
 	}
 
 	// second level menu click - show video list
-	videolistClick(app = this, page = this.page, next = false) {
+	// app <object> web application
+	// page <int> list page number
+	// update <boolean> whether to update the channel list
+	// next <boolesn> whether to move to the next channel in channel mode
+	videolistClick(app = this, page = this.page, update = true, next = false) {
 		if (!this.disabled || this.list.chanMode) {
 			this.resetMenu(1,page);
 			this.itemControls();
 			this.submode = 'list';
 			this.showing = 'videoList';
-			this.list.topic = app.topicId;
-			this.list.search = app.searchId;
-			this.list.channel = app.channelId;
-			this.list.video = 'any';
+			this.list.tid = app.topicId;
+			this.list.sid = app.searchId;
+			this.list.cid = app.channelId;
 			this.list.vstates = this.cfg.state[this.stateIndex].videoStates;
 			this.list.type = 'video';
-			this.refreshContent(true,true,page,next);
+			this.refreshContent(true,update,page,next);
 		}
 	}
 
@@ -974,8 +1218,8 @@ class Wapp {
 		return ht.select(
 			{
 				id: 'item_preview',
-				onchange: ht.cmd('wapp.setItemControls',true,false),
-				title: 'Specify the type of preview to display'
+				onchange: ht.cmd('wapp.setItemPreview'),
+				title: 'Specify the type of previews to display'
 			},
 			ht.forEach(
 				this.previewTypes,
@@ -996,7 +1240,7 @@ class Wapp {
 		return ht.select(
 			{
 				id: 'item_action',
-				onchange: ht.cmd('wapp.actionAll',false,false),
+				onchange: ht.evt('wapp.actionall'),
 				title: 'select an action to perform on all displayed items'
 			},
 			ht.forEach(
@@ -1010,9 +1254,10 @@ class Wapp {
 		);
 	}
 
-	// capture text edit
-	editText(b) {
-		this.editing = b;
+	// turn text edit on/off
+	// on <boolean> text editing on = true, off = false
+	editText(on) {
+		this.editing = on;
 	}
 
 	// second level menu click - new topic launcher
@@ -1063,7 +1308,7 @@ class Wapp {
 										},
 										ht.img(
 											{
-												src: './img/ok.png',
+												src: imageRes.ok,
 												width: this.cfg.client.buttonWidth,
 												height: this.cfg.client.buttonHeight,
 											}
@@ -1085,7 +1330,7 @@ class Wapp {
 		if ((name.length >= this.cfg.topic.minNameLength) && (name.length <= this.cfg.topic.maxNameLength)) {
 			let exists = this.topiclist.findIndex( e => e.name === name);
 			if (exists < 0) {
-				this.emit('open',{
+				this.emit('create',{
 					type: 'topic',
 					name: name,
 					cb: 'topicAdded'
@@ -1096,6 +1341,7 @@ class Wapp {
 	}
 
 	// server response to a new topic
+	// data <object> not used
 	topicAdded(data) {
 		this.emit('topicmenu', {cb:'topicmenu'});
 	}
@@ -1108,14 +1354,16 @@ class Wapp {
 			ut.addClass('#listmenu','selected');
 			this.itemControls();
 			this.showing = 'topicList';
-			this.list.vstates = ['result', 'preview', 'upgrade', 'update','noupdate','offline','queue'];
-			this.list.topic = 'all';
+			this.list.vstates = [];
+			this.list.tid = 0;
 			this.list.type = 'topic';
 			this.refreshContent(true,true,0);
 		}
 	}
 
 	// second level menu click - list filter selected
+	// type <string> mode type
+	// ftype <string> filter type
 	filterClick(type,ftype) {
 		if (!this.disabled) {
 			let filter = ut.val(`#${type}${ftype}select`);
@@ -1129,7 +1377,7 @@ class Wapp {
 
 	// second level menu click - new search launcher
 	searchnewClick() { //launch a new search
-		if (!this.disabled && this.topicId && this.topicId !=='all') {
+		if (!this.disabled && this.topicId) {
 			this.resetMenu(1);
 			this.submode ='new';
 			ut.addClass('#new','selected');
@@ -1212,7 +1460,7 @@ class Wapp {
 										},
 										ht.img(
 											{
-												src: './img/ok.png',
+												src: imageRes.ok,
 												width: this.cfg.client.buttonWidth,
 												height: this.cfg.client.buttonHeight,
 											}
@@ -1233,9 +1481,6 @@ class Wapp {
 	// accept (or reject) new search
 	acceptSearch() {
 		if (this.topicId) {
-			if (this.topicId === 'all') {
-				alert('Select a topic first');
-			} else {
 				let name = ut.val('#search_name_input');
 				let level = parseInt(ut.val('#search_channel_level'));
 				if ((name.length>=this.cfg.search.minNameLength) && (name.length<=this.cfg.search.maxNameLength)) {
@@ -1243,9 +1488,9 @@ class Wapp {
 					if (exists < 0) {
 						let query = ut.val('#search_query_input');
 						if (query.length) {
-							this.emit('open',{
+							this.emit('create',{
 								type: 'search',
-								topic: parseInt(this.topicId.toString()),
+								tid: this.topicId,
 								name: name,
 								query: query,
 								level: level,
@@ -1256,14 +1501,16 @@ class Wapp {
 						}
 					}
 				}
-			}
+		} else {
+			alert('Select a topic first');
 		}
 	}
 
 	// server response to a new search
+	// data <object> not used
 	searchAdded(data) {
 		this.emit('searchmenu', {
-			topic: this.topicId,
+			tid: this.topicId,
 			cb:'searchmenu'
 		});
 	}
@@ -1276,9 +1523,9 @@ class Wapp {
 			ut.addClass('#listmenu','selected');
 			this.itemControls();
 			this.showing = 'searchList';
-			this.list.topic = this.topicId;
+			this.list.tid = this.topicId;
 			this.list.vstates = [];
-			this.list.search = 'any';
+			this.list.sid = 0;
 			this.list.type = 'search';
 			this.refreshContent(true,true,0);
 		}
@@ -1301,18 +1548,19 @@ class Wapp {
 	}
 
 	// server response to reloaded cfg
+	// data <object> configuration data
 	reloadcfg(data) {
 		this.cfg = data.cfg;
 	}
 
-	// second level menu click - reload configuration - allows some changes to ytzero.yaml to become effective
+	// second level menu click - reload configuration - allows some changes to index.yaml to become effective
 	appreloadClick() {
 		if (!this.disabled) {
 			this.emit('reload',{cb:'reloadcfg'});
 			this.resetMenu(1);
 			this.submode = 'reload';
 			ut.addClass('#reloadmenu','selected');
-			ut.html('#content',
+			ut.html(this.content,
 				ht.p(
 					{
 						style:ht.css(
@@ -1322,8 +1570,8 @@ class Wapp {
 						)
 					},
 					ht.concat(
-						'ytzero.yaml configuration file has been reloaded. ',
-						'Not all changes to ytzero.yaml will be immediately effective. ',
+						'index.yaml configuration file has been reloaded. ',
+						'Not all changes to index.yaml will be immediately effective. ',
 						'Some changes may require restarting the server.'
 					)
 				)
@@ -1337,7 +1585,33 @@ class Wapp {
 			this.resetMenu(1);
 			this.submode = 'stats';
 			ut.addClass('#statsmenu','selected');
-			ut.html('#content',
+			let c = [];
+			let v = [];
+			this.cfg.channel.levels.forEach(level => {
+				let curr = {
+					level: level,
+					count: 0
+				};
+				this.statistics.channels.forEach(row => {
+					if (row.level === this.cfg.advanced[level+'Level']) {
+						curr.count = row.channelCount;
+					}
+				});
+				c.push(curr);
+			});
+			this.cfg.video.states.forEach(state => {
+				let curr = {
+					state: state,
+					count: 0
+				};
+				this.statistics.videos.forEach(row => {
+					if (row.state === state) {
+						curr.count = row.videoCount;
+					}
+				});
+				v.push(curr);
+			});
+			ut.html(this.content,
 				ht.p(
 					{
 						style:ht.css(
@@ -1346,7 +1620,94 @@ class Wapp {
 							}
 						)
 					},
-					'some application stats will go here.'
+					ht.table(
+						{class:'statisticstable'},
+						ht.tbody(
+							ht.tr(
+								{class:'statisticsrow'},
+								ht.td(
+									{align:'left'},
+									'topics'
+								),
+								ht.td(),
+								ht.td(
+									{align:'right'},
+									this.statistics.totals['topicTotal']
+								)
+							),
+							ht.tr(
+								{class:'statisticsrow'},
+								ht.td(
+									{align:'left'},
+									'searches'
+								),
+								ht.td(),
+								ht.td(
+									{align:'right'},
+									this.statistics.totals['searchTotal']
+
+								)
+							),
+							ht.tr(
+								{class:'statisticsrow'},
+								ht.td(
+									{align:'left'},
+									'channels'
+								),
+								ht.td(),
+								ht.td(
+									{align:'right'},
+									this.statistics.totals['channelTotal']
+								)
+							),
+							ht.forEach(
+								c,
+								e => {
+									return ht.tr(
+										{class:'substatsrow'},
+										ht.td(
+											{align:'left'},
+											' - '+e.level
+										),
+										ht.td(
+											{align:'right'},
+											e.count
+										),
+										ht.td()
+									)
+								}
+							),
+							ht.tr(
+								{class:'statisticsrow'},
+								ht.td(
+									{align:'left'},
+									'videos'
+								),
+								ht.td(),
+								ht.td(
+									{align:'right'},
+									this.statistics.totals['videoTotal']
+								)
+							),
+							ht.forEach(
+								v,
+								e => {
+									return ht.tr(
+										{class:'substatsrow'},
+										ht.td(
+											{align:'left'},
+											' - '+e.state
+										),
+										ht.td(
+											{align:'right'},
+											e.count
+										),
+										ht.td()
+									)
+								}
+							)
+						)
+					)
 				)
 			);
 		}
@@ -1358,7 +1719,7 @@ class Wapp {
 			this.resetMenu(1);
 			this.submode = 'help';
 			ut.addClass('#helpmenu','selected');
-			ut.html('#content',
+			ut.html(this.content,
 				ht.p(
 					{
 						style:ht.css(
@@ -1373,13 +1734,13 @@ class Wapp {
 		}
 	}
 
-	// second level menu click - show info about ytzero
+	// second level menu click - show info about app
 	appaboutClick() {
 		if (!this.disabled) {
 			this.resetMenu(1);
 			this.submode = 'about';
 			ut.addClass('#aboutmenu','selected');
-			ut.html('#content',
+			ut.html(this.content,
 				ht.p(
 					{
 						style:ht.css(
@@ -1400,7 +1761,7 @@ class Wapp {
 			this.resetMenu(1);
 			this.submode = 'stop';
 			ut.addClass('#stopmenu','selected');
-			ut.html('#content',
+			ut.html(this.content,
 				ht.p(
 					{
 						style:ht.css(
@@ -1409,11 +1770,12 @@ class Wapp {
 							}
 						)
 					},
-					'the ytzero server will be stopped.'
+					'the application server will be stopped when you close this tab.'
 				)
 			);
 			this.emit('stop',{});
 		}
+
 	}
 
 	// show text filter
@@ -1434,14 +1796,28 @@ class Wapp {
 	}
 
 	// respond to list controls
-	setItemControls(refresh,update) {
+	// refresh <boolean> whether to redisplay
+	// update <boolean> whether to update the list
+	setItemControls(refresh, update) {
 		let x = this.subtype;
 		x.display = ut.val('#item_display');
 		x.sort = ut.val('#item_sort');
 		if (ut.exists('#item_text_filter')) x.textFilter = ut.val('#item_text_filter');
-		if (ut.exists('#item_preview')) x.preview = ut.val('#item_preview');
 		this.updcfg();
-		this.refreshContent(refresh,update,update ? 0 : this.page);
+		this.refreshContent(refresh, update, update ? 0 : this.page);
+	}
+
+	// repond to preview type change
+	setItemPreview() {
+		let x = this.subtype;
+		let y = ut.val('#item_preview');
+		if (x.preview !== y) {
+			x.preview = y;
+			Object.keys(this.itemx).forEach( k => {
+				this.itemx[k].previewType = y;
+				this.itemx[k].redisplay(true);
+			});
+		}
 	}
 
 	// show list controls
@@ -1475,7 +1851,7 @@ class Wapp {
 					},
 					ht.img(
 						{
-							src: './img/pgdn.png',
+							src: imageRes.pgdn,
 						}
 					)
 				)
@@ -1491,8 +1867,7 @@ class Wapp {
 					},
 					ht.img(
 						{
-							src: './img/pgup.png',
-
+							src: imageRes.pgup,
 						}
 					)
 				),
@@ -1508,7 +1883,7 @@ class Wapp {
 					},
 					ht.img(
 						{
-							src: './img/end.png',
+							src: imageRes.end,
 
 						}
 					)
@@ -1525,15 +1900,18 @@ class Wapp {
 					},
 					ht.img(
 						{
-							src: './img/home.png',
+							src: imageRes.home,
 
 						}
 					)
 				),
 				this.cfg.client.navHomeField
 			),
-			this.rcell(this.button('undo','undo your last action'),this.cfg.client.undoField),
-			this.rcell(this.button('actionAll','perform chosen action on all displayed items'),this.cfg.client.actionField),
+			ht.ifElse(
+				this.undoData.length,
+				this.rcell(this.button('undo',`undo your last discard/level action`),this.cfg.client.undoField),
+			),
+			this.rcell(this.button('actionall',`perform chosen action (${x.allAction}) on all displayed items`),this.cfg.client.actionField),
 			this.rcell(this.itemAction(),this.cfg.client.actionOptionField),
 			this.rcell(this.button('scaledown','scale down item box sizes'),this.cfg.client.scaleDownField),
 			this.rcell(this.button('scaleup','scale up item box sizes'),this.cfg.client.scaleUpField),
@@ -1545,17 +1923,18 @@ class Wapp {
 	}
 
 	// show auto load button
-	autoButton () {
+	autoButton() {
+		let t = this.subtype;
 		return ht.button(
 			{
 				id: 'autobut',
 				onclick: ht.evt('wapp.toggleAuto'),
-				title: `click to turn automatic display updates ${this.autoLoad ? 'off' : 'on'}`
+				title: `click to turn automatic display updates ${t.autoLoad ? 'off' : 'on'}`
 			},
 			ht.img(
 				{
 					id: 'autoimg',
-					src: `./img/${this.autoLoad ? 'automatic' : 'manual'}.png`,
+					src: imageRes[t.autoLoad ? 'automatic' : 'manual'],
 					height: this.cfg.client.buttonHeight,
 					width: this.cfg.client.buttonWidth
 				}
@@ -1565,9 +1944,11 @@ class Wapp {
 
 	// toggle auto load
 	toggleAuto() {
-		this.autoLoad = !this.autoLoad;
-		ut.attr('#autobut',{title: `click to turn automatic updating ${this.autoLoad ? 'off' : 'on'}`});
-		ut.prop('#autoimg',{src: `./img/${this.autoLoad ? 'automatic' : 'manual'}.png`});
+		let t = this.subtype;
+		t.autoLoad = !t.autoLoad;
+		this.updcfg();
+		ut.attr('#autobut',{title: `click to turn automatic updating ${t.autoLoad ? 'off' : 'on'}`});
+		ut.attr('#autoimg',{src: imageRes[t.autoLoad ? 'automatic' : 'manual']});
 	}
 
 	// show item control section
@@ -1584,128 +1965,248 @@ class Wapp {
 	}
 
 	// clear all videos of a channel
+	// cid <int> channel id
 	clearChannel(cid) {
 		let keys = Object.keys(this.itemx);
 		for (let i = keys.length-1; i>=0; i--) {
 			let v = this.itemx[keys[i]];
-			if ((v.item.channel && v.item.channel === cid) || (v.type === 'channel' && v.item.id === cid )) {
-				this.dcbAdd(v.item.id);
+			if ((v.item.cid && v.item.cid === cid) || (v.type === 'channel' && v.item.id === cid )) {
+				this.dcbAdd(v.item.key);
 				v.clear();
 			}
 		}
 	}
 
 	// cancel a download
-	cancel(event,id) {
-		let v = this.itemx[id];
-		if (v.choosing) {
-			v.unchoose();
-		} else {
-			this.emit('cancel',{
-				id: id
-			});
-		}
+	// event <object> mouse event
+	// key <string> item key
+	cancel(event,key) {
+		this.emit('cancel',{
+			id: this.itemx[key].item.id
+		});
 		event.stopPropagation();
 	}
 
 	// show preview of type or toggle to previous type
-	showPreview(event,id,type,active = false) {
-		let x = this.itemx[id];
+	// event <object> mouse event
+	// key <string> item key
+	// type <string> preview type
+	// active <boolean> whether choice is active (reverts to previous)
+	showPreview(event,key,type,active = false) {
+		let x = this.itemx[key];
 		if (active) {
 			x.showPreview = x.previewType = x.prevPreview;
 		} else {
 			x.prevPreview = x.previewType;
 			x.showPreview = x.previewType = type;
 		}
-		x.redisplay();
+		x.redisplay(true);
 		event.stopPropagation();
 	}
 
 	// show info preview
-	showinfo(event,id,active = false) {
-		this.showPreview(event,id,'info',active);
+	// event <object> mouse event
+	// key <string> item key
+	// active <boolean> whether choice is active (reverts to previous)
+	showinfo(event,key,active = false) {
+		this.showPreview(event,key,'info',active);
 	}
 
 	// show image preview
-	showimage(event,id,active = false) {
-		this.showPreview(event,id,'images',active);
+	// event <object> mouse event
+	// key <string> item key
+	// active <boolean> whether choice is active (reverts to previous)
+	showimage(event,key,active = false) {
+		this.showPreview(event,key,'images',active);
 	}
 
 	// play storyboard preview
-	playstory(event,id,active = false) {
-		this.showPreview(event,id,'storyboards',active);
+	// event <object> mouse event
+	// key <string> item key
+	// active <boolean> whether choice is active (reverts to previous)
+	playstory(event,key,active = false) {
+		this.showPreview(event,key,'storyboards',active);
 	}
 
 	// play video preview
-	playvideo(event,id,active = false) {
-		this.showPreview(event,id,'videos',active);
+	// event <object> mouse event
+	// key <string> item key
+	// active <boolean> whether choice is active (reverts to previous)
+	playvideo(event,key,active = false) {
+		this.showPreview(event,key,'videos',active);
 	}
 
-	// undo last discard action
+	// undo last discard/block/level change action
+	// event <object> mouse event
 	undo(event) {
 		this.undoData.forEach( (e) => {
-			this.emit('set', {
+			this.emit('undo', {
 				type: e.type,
 				item: e.item
 			});
-			this.dcbRemove(e.item.id);
+			this.dcbRemove(e.item.key);
 		});
 		this.undoData = [];
 		this.refreshContent(true,true);
 		event.stopPropagation();
 	}
 
+	// discard a single item
+	// event <object> mouse event
+	// key <string> item key
+	discard(event, key) {
+		let x = this.itemx[key];
+		let t = x.type;
+		let st = this.subtype;
+		let isch = false;
+		let cl = this.itemObject;
+		this.undoData = [{
+			type: t,
+			item: structuredClone(x.item),
+		}];
+		this.emit('delete',{
+			type: t,
+			ids : [x.item.id]
+		});
+		if (this.mode === 'video' && this.cfg.state[this.stateIndex].videoStates.includes('discarded')) {
+			x.item.state = 'discarded';
+			x.redisplay(true);
+		} else {
+			x.clear();
+			this.dcbAdd(key);
+			let looking = this.nextResponse.length;
+			while (looking) {
+				let i = this.nextResponse.shift();
+				if (!this.itemx[i.key]) {
+					let it;
+					if (i.type === 'channel' && st !=='channel') {
+						it = new Channel(i, st.scale);
+						isch = true;
+					} else {
+						it = new cl(i, st.scale);
+						isch = false;
+					}
+					ut.append(this.content, it.html)
+					this.itemx[it.item.key] = it;
+					if (this.mode === 'video' && !isch) it.repreview();
+					looking = false;
+				} else {
+					looking = this.nextResponse.length;
+				}
+			}
+			this.refreshContent(false,false);
+		}
+		event.stopPropagation();
+	}
+
+	// discard all visible items
+	// event <object> mouse event
+	discardAll(event) {
+		let ids = [];
+		Object.keys(this.itemx).forEach( k => {
+			let it = this.itemx[k];
+			if (it.type !== 'video' || it.can('discard')) ids.push(it.item.id);
+		});
+		this.undoData = [];
+		if (this.list.chanMode && ids.length) ids.shift();
+		if (ids.length) {
+			this.emit('delete',
+				{
+					type: this.mode,
+					ids: ids
+				}
+			);
+			ids.forEach((i)=>{
+				let x = this.itemx[`${this.mode}_${i}`];
+				if (this.mode !== 'video' || this.cfg.state[this.stateIndex].videoStates.includes('discarded')) {
+					this.type === 'video' ? x.reoption() : x.redisplay(true);
+				} else {
+					x.clear();
+					this.dcbAdd(x.item.key);
+				}
+				this.undoData.push({
+					type: x.type,
+					item: structuredClone(x.item),
+				});
+			});
+			this.refreshContent(true,false);
+		}
+		event.stopPropagation();
+	}
+
 	// apply bulk action
-	actionAll(event) {
+	// event <object> mouse event
+	actionall(event) {
 		let action = ut.val('#item_action');
 		this.subtype.allAction = action;
 		let act = '';
 		if (['search','scan','update'].includes(action)) act = 'discarded';
 		if (action === 'follow') act = 'queue';
-		action === 'none' ? event.stopPropagation() : this[action+'All'](event,act);
+		action === 'none' ? event.stopPropagation() : this[action+'All'](event, act);
 	}
 
-    //change channel level of id to lev. del to delete entry or remove only if statusFilter is in [rem]
-	level(event,id,lev,del,rem) {
-		let x = this.itemx[id];
-		let cid = x.type === 'channel' ? x.item.id : x.item.channel;
+    //change channel level of key to lev. del to delete entry or remove only if statusFilter is in [rem]
+	// event <object> mouse event
+	// key <string> item key
+	// lev <int> chosen channel level
+	// del <boolean> whether affected items should be deleted from display
+	// rem <string array> status list of items that should be removed from display
+	level(event,key,lev,del,rem,act = 0) {
+		let x = this.itemx[key];
+		let cid = x.type === 'channel' ? x.item.id : x.item.cid;
+		this.undoData = [];
 		this.emit('level',{	cids: [cid], level: lev });
+		if (act === 1) this.emit('discardchanvids',{cid: cid});
+		if (act === 2) this.emit('downloadchanvids',{cid: cid});
+		if (act === 3) {
+			this.emit('downloadchanvids',{cid: cid});
+			this.emit('queuechanvids',{cid: cid});
+		}
 		Object.keys(this.itemx).forEach( k => {
 			let v = this.itemx[k];
-			if (v.type === 'video' && v.item.channel === cid) {
-				v.item.clevel = lev;
-				v.redisplay();
+			if (v.type === 'video' && v.item.cid === cid) {
+				v.item.channel.level = lev;
+				v.reoption();
 			}
+			this.undoData.push({
+				type: x.type,
+				item: structuredClone(x.item),
+			});
 		})
 		if (del || rem.includes(this.subtype.statusFilter)) {
-			this.dcbAdd(cid);
+			this.dcbAdd(`channel_${cid}`);
 			this.clearChannel(cid);
-			this.list.chanMode ? this.unchan(event,id) : this.refreshContent(false,false);
+			this.list.chanMode ? this.unchan(event,key) : this.refreshContent(false,false);
 		}
 		event.stopPropagation();
 	}
 
 	//change channel level of all to lev. del to delete entries or remove only if statusFilter is in [rem]
+	// event <object> mouse event
+	// lev <int> chosen channel level
+	// del <boolean> whether affected items should be deleted from display
+	// rem <string array> status list of items that should be removed from display
+	// act <string> new state for items (optional)
 	levelAll(event,lev,del,rem,act = '') {
 		let cids = [];
+		this.undoData = [];
 		Object.keys(this.itemx).forEach( k => {
 			let x = this.itemx[k];
-			let cid = x.type === 'channel' ? x.item.id : x.item.channel;
+			let cid = x.type === 'channel' ? x.item.id : x.item.cid;
+			this.undoData.push({
+				type: x.type,
+				item: structuredClone(x.item),
+			});
 			if (!cids.includes(cid)) cids.push(cid);
 			if (x.type === 'video' && x.item.channel === cid) {
 				x.item.clevel = lev;
-				if (act.length) {
-					if (x.can(act)) {
-						x.item.state = act;
-						x.set();
-					}
-				}
+				if (act.length && x.can(act)) x.state = act;
 			}
 			if (del || rem.includes(this.subtype.statusFilter)) {
 				x.clear();
-				this.dcbAdd(x.item.id);
+				this.dcbAdd(x.item.key);
 			} else {
-				x.redisplay();
+				x.reoption();
 			}
 		});
 		this.emit('level',{
@@ -1717,10 +2218,12 @@ class Wapp {
 	}
 
 	// block a channel
-	block(event,id) {
+	// event <object> mouse event
+	// key <string> item key
+	block(event,key) {
 		this.level(
 			event,
-			id,
+			key,
 			this.cfg.advanced.blockLevel,
 			!this.subtype.videoStates.includes('discarded'),
 			['not blocked','searched','searched+','scanned','scanned+','updated','updated+','liked','liked+','followed']
@@ -1728,6 +2231,8 @@ class Wapp {
 	}
 
 	// block all visible channels
+	// event <object> mouse event
+	// act <string> new state for items (optional)
 	blockAll(event, act = '') {
 		this.levelAll(
 			event,
@@ -1739,24 +2244,32 @@ class Wapp {
 	}
 
 	// block channel while in channel mode
-	cblock(event,id,next) {
-		this.block(event,id);
-		this.unchan(event,id,next);
+	// event <object> mouse event
+	// key <string> item key
+	cblock(event,key,next) {
+		this.block(event,key);
+		this.unchan(event,key,next);
 		event.stopPropagation();
 	}
 
 	// set channel to search level
-	search(event,id) {
+	// event <object> mouse event
+	// key <string> item key
+	search(event,key) {
+		let act = 0;
+		if (this.ctrlPressed) act = 1;
 		this.level(
 			event,
-			id,
+			key,
 			this.cfg.advanced.searchLevel,
-			false,
-			['blocked','not searched','scanned','scanned+','updated','updated+','liked','liked+','followed']
+			this.ctrlPressed,
+			['blocked','not searched','scanned','scanned+','updated','updated+','liked','liked+','followed'],
+			act
 		);
 	}
 
 	// set all visible channels to search level
+	// act <string> new state for items (optional)
 	searchAll(event,act = '') {
 		this.levelAll(
 			event,
@@ -1768,25 +2281,36 @@ class Wapp {
 	}
 
 	// set channel to search level while in channel mode - discards current videos
-	csearch(event,id,next) {
-		this.emit('level',{cids:[id], level: this.cfg.advanced.searchLevel});
-		this.emit('discardchanvids',{cid: id});
-		this.unchan(event,id,next);
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	csearch(event,key,next) {
+		let cid = this.itemx[key].item.id;
+		this.emit('level',{cids:[cid], level: this.cfg.advanced.searchLevel});
+		this.emit('discardchanvids',{cid: cid});
+		this.unchan(event,key,next);
 		event.stopPropagation();
 	}
 
 	// set channel to scan level
-	scan(event,id) {
+	// event <object> mouse event
+	// key <string> item key
+	scan(event,key) {
+		let act = 0;
+		if (this.ctrlPressed) act = 1;
 		this.level(
 			event,
-			id,
+			key,
 			this.cfg.advanced.scanLevel,
-			false,
-			['blocked','searched','searched-','not scanned','updated','updated+','liked','liked+','followed']
+			this.ctrlPressed,
+			['blocked','searched','searched-','not scanned','updated','updated+','liked','liked+','followed'],
+			act
 		);
 	}
 
 	// set all visible channels to scan level
+	// event <object> mouse event
+	// act <string> new state for items (optional)
 	scanAll(event,act = '') {
 		this.levelAll(
 			event,
@@ -1798,25 +2322,36 @@ class Wapp {
 	}
 
 	// set channel to scan level while in channel mode - discards current videos
-	cscan(event,id,next) {
-		this.emit('level',{cids:[id], level: this.cfg.advanced.scanLevel});
-		this.emit('discardchanvids',{cid: id});
-		this.unchan(event,id,next);
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	cscan(event,key,next) {
+		let cid = this.itemx[key].item.id;
+		this.emit('level',{cids:[cid], level: this.cfg.advanced.scanLevel});
+		this.emit('discardchanvids',{cid: cid});
+		this.unchan(event,key,next);
 		event.stopPropagation();
 	}
 
 	// set channel to update level
-	update(event,id) {
+	// event <object> mouse event
+	// key <string> item key
+	update(event,key) {
+		let act = 0;
+		if (this.ctrlPressed) act = 1;
 		this.level(
 			event,
-			id,
+			key,
 			this.cfg.advanced.updateLevel,
-			false,
-			['blocked','searched','searched-','scanned','scanned-','not updated','liked','liked+','followed']
+			this.ctrlPressed,
+			['blocked','searched','searched-','scanned','scanned-','not updated','liked','liked+','followed'],
+			act
 		);
 	}
 
 	// set all visible channels to update level
+	// event <object> mouse event
+	// act <string> new state for items (optional)
 	updateAll(event,act = '') {
 		this.levelAll(
 			event,
@@ -1828,26 +2363,37 @@ class Wapp {
 	}
 
 	// set channel to update level while in channel mode - discards current videos
-	cupdate(event,id,next) {
-		this.emit('level',{cids:[id], level: this.cfg.advanced.updateLevel});
-		this.emit('discardchanvids',{cid: id});
-		this.unchan(event,id,next);
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	cupdate(event,key,next) {
+		let cid = this.itemx[key].item.id;
+		this.emit('level',{cids:[cid], level: this.cfg.advanced.updateLevel});
+		this.emit('discardchanvids',{cid: cid});
+		this.unchan(event,key,next);
 		event.stopPropagation();
 	}
 
 	// set channel to like level
-	like(event,id) {
+	// event <object> mouse event
+	// key <string> item key
+	like(event,key) {
+		let act = 0;
+		if (this.ctrlPressed) act = 2;
 		this.level(
 			event,
-			id,
+			key,
 			this.cfg.advanced.likeLevel,
 			false,
-			['blocked','searched','searched-','scanned','scanned-','updated','updated-','not liked','followed']
+			['blocked','searched','searched-','scanned','scanned-','updated','updated-','not liked','followed'],
+			act
 		);
 	}
 
 	// set all visible channels to like level
-	likeAll(event,act) {
+	// event <object> mouse event
+	// act <string> new state for items (optional)
+	likeAll(event,act = '') {
 		this.levelAll(
 			event,
 			this.cfg.advanced.likeLevel,
@@ -1858,17 +2404,31 @@ class Wapp {
 	}
 
 	// set channel to like level while in channel mode - keeps current videos
-	clike(event,id,next) {
-		this.emit('level',{cids:[id], level: this.cfg.advanced.likeLevel});
-		this.unchan(event,id,next);
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	clike(event,key,next) {
+		let cid = this.itemx[key].item.id;
+		this.emit('level',{cids:[cid], level: this.cfg.advanced.likeLevel});
+		this.emit('downloadchanvids',{cid: cid});
+		if (this.subtype.videoStates.includes('download')) this.dcbAdd(`channel_${cid}`);
+		this.unchan(event,key,next);
 		event.stopPropagation();
 	}
 
 	// follow channel
-	follow(event,id) {
+	// event <object> mouse event
+	// key <string> item key
+	follow(event,key) {
+		let act = 0;
+		if (this.ctrlPressed) act = 3;
+		if (this.ctrlPressed) {
+			let cid = this.itemx[key].item.id;
+			this.emit('downloadchanvids',{cid: cid});
+		}
 		this.level(
 			event,
-			id,
+			key,
 			this.cfg.advanced.followLevel,
 			false,
 			['blocked','searched','searched-','scanned','scanned-','updated','updated-','liked','liked-','not followed']
@@ -1876,6 +2436,8 @@ class Wapp {
 	}
 
 	// follow all visible channels
+	// event <object> mouse event
+	// act <string> new state for items (optional)
 	followAll(event, act) {
 		this.levelAll(
 			event,
@@ -1887,14 +2449,22 @@ class Wapp {
 	}
 
 	// set channel to follow level while in channel mode - queues current videos
-	cfollow(event,id,next) {
-		this.emit('level',{cids:[id],level: this.cfg.advanced.followLevel})
-		this.emit('queuechanvids',{cid: id});
-		this.unchan(event,id,next);
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	cfollow(event,key,next) {
+		let cid = this.itemx[key].item.id;
+		this.emit('level',{cids:[cid],level: this.cfg.advanced.followLevel})
+		this.emit('queuechanvids',{cid: cid});
+		if (!this.subtype.videoStates.includes('queue')) this.dcbAdd(`channel_${cid}`);
+		this.emit('downloadchanvids',{cid: cid});
+		if (this.subtype.videoStates.includes('download')) this.dcbAdd(`channel_${cid}`);
+		this.unchan(event,key,next);
 		event.stopPropagation();
 	}
 
 	// refresh data for all visible items
+	// event <object> mouse event
 	refreshAll(event) {
 		Object.keys(this.itemx).forEach(k => {
 			if (this.itemx[k].can('refresh')) this.refresh(event,k);
@@ -1903,16 +2473,37 @@ class Wapp {
 	}
 
 	// queue video
-	queue(event,id,all) {
-		let x = this.itemx[id];
+	// event <object> mouse event
+	// key <string> item key
+	// all <boolean> whether all displayed items are being queued
+	queue(event,key,all=false) {
+		let x = this.itemx[key];
+		let st = this.subtype;
+		let cl = this.itemObject;
 		if (x.type === 'video') {
-			x.item.state = 'queue';
-			x.set();
+			if (!all) this.undoData = [{
+				type: x.type,
+				item: structuredClone(x.item)
+			}];
+			x.state = 'queue';
 			if (all || this.cfg.state[this.stateIndex].videoStates.includes('queue')) {
-				x.redisplay();
+				x.redisplay(true);
 			} else {
 				x.clear();
-				this.dcbAdd(id);
+				this.dcbAdd(key);
+				let looking = this.nextResponse.length;
+				while (looking) {
+					let i = this.nextResponse.shift();
+					if (!this.itemx[i.key]) {
+						let it = new cl(i, st.scale);
+						ut.append(this.content, it.html)
+						this.itemx[it.item.key] = it;
+						it.repreview();
+						looking = false;
+					} else {
+						looking = this.nextResponse.length;
+					}
+				}
 				this.refreshContent(false,false);
 			}
 		}
@@ -1920,25 +2511,40 @@ class Wapp {
 	}
 
 	// queue all visible vidoes
+	// event <object> mouse event
 	queueAll(event) {
+		this.undoData = [];
 		Object.keys(this.itemx).forEach(k => {
-			if (this.itemx[k].can('queue')) this.queue(event,k,true);
+			let it = this.itemx[k];
+			if (it.can('queue')) {
+				this.undoData.push({
+					type: 'video',
+					item: structuredClone(it.item),
+				});
+				this.queue(event,k,true);
+			}
 		});
 		this.refreshContent(false,false);
 		event.stopPropagation();
 	}
 
 	// unqueue video
-	unqueue(event,id,all) {
-		let x = this.itemx[id];
+	// event <object> mouse event
+	// key <string> item key
+	// all <boolean> whether all displayed items are being unqueued
+	unqueue(event,key,all) {
+		let x = this.itemx[key];
 		if (x.type === 'video') {
-			x.item.state = 'noupdate';
-			x.set();
+			if (!all) this.undoData = [{
+				type: x.type,
+				item: structuredClone(x.item),
+			}];
+			x.state = 'noupdate';
 			if (all || this.cfg.state[this.stateIndex].videoStates.includes('noupdate')) {
-				x.redisplay();
+				x.redisplay(true);
 			} else {
 				x.clear();
-				this.dcbAdd(id);
+				this.dcbAdd(key);
 				this.refreshContent(false,false);
 			}
 		}
@@ -1946,28 +2552,40 @@ class Wapp {
 	}
 
 	// unqueue all visible videos
+	// event <object> mouse event
 	unqueueAll(event) {
+		this.undoData = [];
 		Object.keys(this.itemx).forEach(k => {
-			if (this.itemx[k].can('unqueue')) this.unqueue(event,k,true);
+			let it = this.itemx[k];
+			if (it.can('unqueue')) {
+				this.undoData.push({
+					type: 'video',
+					item: structuredClone(it.item),
+				});
+				this.unqueue(event,k,true);
+			}
 		});
 		this.refreshContent(false,false);
 		event.stopPropagation();
 	}
 
 	// download a video
-	download(event,id) {
-		let v = this.itemx[id];
+	// event <object> mouse event
+	// key <string> item key
+	download(event,key) {
+		let v = this.itemx[key];
 		if (v.type === 'video') {
 			v.state = 'download..';
 			this.emit('download', {
-				item: v.item
-			})
-			v.redisplay();
+				id: v.item.id
+			});
+			v.reoption();
 		}
 		event.stopPropagation();
 	}
 
 	// download all visible videos
+	// event <object> mouse event
 	downloadAll(event) {
 		Object.keys(this.itemx).forEach(k => {
 			if (this.itemx[k].can('download')) this.download(event,k);
@@ -1975,41 +2593,18 @@ class Wapp {
 		event.stopPropagation();
 	}
 
-	// export a video
-	export(event,id) {
-		let v = this.itemx[id];
-		if (v.type === 'video') this.emit('export',{item: v.item});
-		event.stopPropagation();
-	}
-
-	// export all visible downloads
-	exportAll(event) {
-		Object.keys(this.itemx).forEach(k => {
-			if (this.itemx[k].can('export')) this.export(event,k);
+	// erase a download
+	// event <object> mouse event
+	// key <string> item key
+	erase(event,key) {
+		this.emit('delvid',{
+			id: this.itemx[key].item.id
 		});
 		event.stopPropagation();
 	}
 
-	// erase a download
-	erase(event,id) {
-		let v = this.itemx[id];
-		if (v.type === 'video') {
-			this.emit('delvid',{item: v.item});
-			if (this.cfg.state[this.stateIndex].videoStates.includes('discarded')) {
-				v.state = 'discarded';
-			} else if (this.cfg.state[this.stateIndex].videoStates.includes('queue')) {
-				v.state = 'queue';
-			} else if (this.cfg.state[this.stateIndex].videoStates.includes('download')) {
-				v.state = 'discarded';
-			} else {
-				v.state = 'noupdate';
-			}
-			v.redisplay();
-		}
-		event.stopPropagation();
-	}
-
 	// erase all visible downloads
+	// event <object> mouse event
 	eraseAll(event) {
 		Object.keys(this.itemx).forEach(k => {
 			if (this.itemx[k].can('erase')) this.erase(event,k);
@@ -2018,12 +2613,15 @@ class Wapp {
 	}
 
 	// rotate a preview
-	rotate(event,id) {
-		if (this.itemx[id].type === 'video') this.itemx[id].rotate();
+	// event <object> mouse event
+	// key <string> item key
+	rotate(event,key) {
+		if (this.itemx[key].type === 'video') this.itemx[key].rotate();
 		event.stopPropagation();
 	}
 
 	// rotate all visible previews
+	// event <object> mouse event
 	rotateAll(event) {
 		Object.keys(this.itemx).forEach(k => {
 			if (this.itemx[k].can('rotate')) this.rotate(event,k)
@@ -2031,65 +2629,11 @@ class Wapp {
 		event.stopPropagation();
 	}
 
-	// discard an item
-	discard(event, id) {
-		let x = this.itemx[id];
-		let t = x.type;
-		this.undoData = [{
-			type: t,
-			item: ut.jp(ut.js(x.item))
-		}];
-		let s = x.item.state;
-		this.emit('delete',{
-			type: t,
-			ids : [id]
-		});
-		if (this.mode === 'video' && this.cfg.state[this.stateIndex].videoStates.includes('discarded')) {
-			x.redisplay();
-		} else {
-			x.clear();
-			this.dcbAdd(id);
-			this.refreshContent(false,false);
-		}
-		event.stopPropagation();
-	}
-
-	// discard all visible items
-	discardAll(event) {
-		let ids = [];
-		Object.keys(this.itemx).forEach( k => {
-			let it = this.itemx[k];
-			if (it.type !== 'video' || it.can('discard')) ids.push(k);
-		});
-		this.undoData = [];
-		if (this.list.chanMode && ids.length) ids.shift();
-		if (ids.length) {
-			this.emit('delete',
-				{
-					type: this.mode,
-					ids: ids
-				}
-			);
-			ids.forEach((k)=>{
-				let x = this.itemx[k];
-				if (this.mode !== 'video' || this.cfg.state[this.stateIndex].videoStates.includes('discarded')) {
-					x.redisplay();
-				} else {
-					x.clear();
-					this.dcbAdd(x.item.id);
-				}
-				this.undoData.push({
-					type: x.type,
-					item: { ...x.item }
-				});
-			});
-			this.refreshContent(true,false);
-		}
-		event.stopPropagation();
-	}
-
 	// entry into channel mode
-	chan(event, id, next = false) {
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	chan(event, key, next = false) {
 		if (!this.list.chanMode || next) {
 			let x;
 			if (next) {
@@ -2097,68 +2641,99 @@ class Wapp {
 			} else {
 				this.chanList = [];
 				Object.keys(this.itemx).forEach((k)=>{
-					if (k !== id) this.chanList.push({... this.itemx[k]});
+					let add = true;
+					if (this.itemx[k].type === 'channel') {
+						if (k === key) add = false;
+						if (this.chanList.findIndex(e => { return k === e.item.key;}) >= 0) add = false;
+					} else {
+						if (this.itemx[k].item.cid === this.itemx[key].item.cid) add = false;
+						if (this.chanList.findIndex(e => { return this.itemx[k].item.cid === e.item.cid;}) >= 0) add = false;
+					}
+					if (add) this.chanList.push(this.itemx[k]);
 				});
 				this.disabled = true;
 				this.restoreMode = this.mode;
 				this.restorePage = this.page;
 				this.restoreState = this.state;
-				this.restoreMode = this.mode;
 				this.list.chanMode = true;
 				this.mode = 'video';
 				this.state = 'chview';
-				x = this.itemx[id];
+				x = this.itemx[key];
 			}
-			if (x.item.topic) {
-				this.list.cid = (this.restoreMode === 'channel') ? x.item.id : x.item.channel
-				this.videolistClick({
-					topicId: x.item.topic,
-					searchid: x.item.search,
-					channelId: this.list.cid,
-					state: 'chview'
-				},0);
-			}
+			this.list.cid = this.restoreMode === 'channel' ? x.item.id : x.item.cid
+			this.videolistClick({
+				topicId: 0,
+				searchid: 0,
+				channelId: this.list.cid,
+				state: 'chview'
+			},0);
 		}
 		if (event) event.stopPropagation();
 	}
 
+	// single step through channel list. return true if next channel key matches key
+	// key <string> item key
+	advchan(key) {
+		if (!this.chanList.length) return false;
+		let x = this.chanList[0];
+		if (x.type === 'channel') {
+			if (key === x.item.key) return true;
+		} else {
+			if (key === x.item.channel.key) return true;
+		}
+		return false;
+	}
+
 	// leave channel mode
-	unchan(event,id,next = false) {
+	// event <object> mouse event
+	// key <string> item key
+	// next <boolean> whether to move to next channel
+	unchan(event,key,next = false) {
 		if (this.list.chanMode) {
+			while (this.advchan(key)) this.chanList.shift();
 			if (next && this.chanList.length) {
-				this.chan(event,this.chanList[0].item.id,next);
+				this.chan(event,this.chanList[0].item.key,next);
 			} else {
+				// reached the end of the list
 				this.disabled = false;
 				this.list.chanMode = false;
 				this.mode = this.restoreMode;
 				this.state = this.restoreState;
 				(this.mode === 'channel') ?
-					this.channellistClick(this,this.restorePage,next) :
-					this.videolistClick(this,this.restorePage,next);
+					this.channellistClick(this,this.restorePage,false,next) :
+					this.videolistClick(this,this.restorePage,false,next);
 			}
 		}
 		event.stopPropagation();
 	}
 
-	nextchan(event,id) {
-		this.unchan(event,id,true);
+	// move to the next channel in channel mode
+	// event <object> mouse event
+	// key <string> item key
+	nextchan(event,key) {
+		this.unchan(event,key,true);
 		event.stopPropagation();
 	}
 
 	// stop a pending download / put in the queue
-	stopdl(event,id) {
-		let v = this.itemx[id];
-		v.item.state = 'queue';
-		v.set();
-		v.redisplay();
+	// event <object> mouse event
+	// key <string> item key
+	stopdl(event,key) {
+		let v = this.itemx[key];
+		v.state = 'queue';
+		v.reoption();
 		event.stopPropagation();
 	}
 
 	// watch a video embedded in the browser
-	embed(event,id,vstream = 0) {
-		let v = this.itemx[id];
-		if (this.ctrlPressed && v.can('like')) return this.like(event,id);
-		if (this.shiftPressed && v.can('block')) return this.block(event,id);
+	// event <object> mouse event
+	// key <string> item key
+	// vstream <int> video stream index, defaults to best video, or best video with audio (if embedBoth is true)
+	embed(event,key,vstream = 0) {
+		let v = this.itemx[key];
+		if (this.ctrlPressed && v.can(this.cfg.video.ctrlClick)) return this[this.cfg.video.ctrlClick](event,key);
+		if (this.shiftPressed && v.can(this.cfg.video.shiftClick)) return this[this.cfg.video.shiftClick](event,key);
+		if (this.altPressed && v.can(this.cfg.video.altClick)) return this[this.cfg.video.altClick](event,key);
 		if (
 			this.reembedded
 			||
@@ -2171,7 +2746,7 @@ class Wapp {
 			this.embedded = true;
 			if (!this.reembedded) {
 				if (this.cfg.video.embedBoth) {
-					let f = v.item.meta.videoStreams.findIndex(e => { return e.type === 'both'; });
+					let f = v.item.videoStreams.findIndex(e => { return e.type === 'both'; });
 					if (f>=0) vstream = f;
 				}
 			}
@@ -2179,93 +2754,78 @@ class Wapp {
 			ut.css('#play',{display:'block'});
 			let attrib = {
 				id: 'videoplayback',
-				class: `embedframe rembed${v.item.meta.rotation}`,
+				class: `embedframe rembed${v.item.rotation}`,
 				loop : this.cfg.video.embedLoop,
 				autoplay : this.cfg.video.embedAutoplay,
 				controls : this.cfg.video.embedControls,
 			};
 			ut.html('#play',
 				ht.concat(
-					ht.ifElse(
-						v.item.state === 'downloaded',
-						ht.video(
-							attrib,
+					ht.video(
+						attrib,
+						ht.concat(
 							ht.ifElse(
-								v.item.videoCodec === 'vp9',
-								ht.source(
-									{
-										src: encodeURI(v.item.meta.fn.replace('/client','')).replaceAll('#','%23'),
-										type: 'video/webm'
-									}
-								),
-								ht.source(
-									{
-										src: encodeURI(v.item.meta.fn.replace('/client','')).replaceAll('#','%23'),
-										type: 'video/mp4'
-									}
-								)
-							)
-						),
-						() => {
-							if (
-								v.can('download')
-								||
-								v.can('stopdl')
-							) {
-								return ht.concat(
-									ht.video(
-										attrib,
-										ht.ifElse(
-											v.item.meta.videoStreams[vstream].container === 'webm',
-											ht.source(
-												{
-													src: v.item.meta.videoStreams[vstream].url,
-													type: 'video/webm'
-												}
-											),
-											ht.source(
-												{
-													src: v.item.meta.videoStreams[vstream].url,
-													type: 'video/mp4'
-												}
-											)
-										)
+								v.item.state === 'downloaded',
+								ht.ifElse(
+									v.item.videoCodec === 'vp9',
+									ht.source(
+										{
+											src: encodeURI(v.item.fn.replace('/client','')).replaceAll('#','%23'),
+											type: 'video/webm'
+										}
 									),
-									ht.forEach(
-										v.item.meta.videoStreams,
-										(e,i,a) => {
-											let info = `Play ${e.type} - ${e.quality} - ${e.codec} - ${e.container}`;
-											return ht.div(
-												{
-													'class': i === vstream ? 'codecdiv altdiv' : 'codecdiv divdiv',
-													onclick: ht.evt('wapp.reembed',id,i),
-													title: info,
-													style: ht.css({top: `${60+21*(1+i)}px`})
-												},
-												ht.img(
-													{
-														'class': 'codecimg',
-														src: `../img/${e.type}_over.png`
-													}
-												)
-											);
+									ht.source(
+										{
+											src: encodeURI(v.item.fn.replace('/client','')).replaceAll('#','%23'),
+											type: 'video/mp4'
 										}
 									)
 								)
-							} else {
-								return ht.iframe(
-									{
-										class : "embedframe",
-										src : `${wapp.cfg.video.embedUrl}/${id}?autoplay=${this.
-											cfg.video.embedAutoplay}&mute=${this.
-												cfg.video.embedMuted}&playlist=${id}&loop=${this.
-													cfg.video.embedLoop}`,
-										allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-										allowfullscreen : "allowfullscreen"
-									}
+							),
+							ht.ifElse(
+								v.can('video'),
+								ht.concat(
+									ht.ifElse(
+										v.item.videoStreams[vstream].container === 'webm',
+										ht.source(
+											{
+												src: `${v.item.videoStreams[vstream].url}&range=0-${v.item.videoStreams[vstream].size}`,
+												type: 'video/webm'
+											}
+										),
+										ht.source(
+											{
+												src: `${v.item.videoStreams[vstream].url}&range=0-${v.item.videoStreams[vstream].size}`,
+												type: 'video/mp4'
+											}
+										)
+									),
 								)
+							)
+						)
+					),
+					ht.ifElse(
+						v.can('video'),
+						ht.forEach(
+							v.item.videoStreams,
+							(e,i,a) => {
+								let info = `Play ${e.type} - ${e.quality} - ${e.codec} - ${e.container}`;
+								return ht.div(
+									{
+										'class': i === vstream ? 'codecdiv altdiv' : 'codecdiv divdiv',
+										onclick: ht.evt('wapp.reembed',key,i),
+										title: info,
+										style: ht.css({top: `${60+21*(1+i)}px`})
+									},
+									ht.img(
+										{
+											'class': 'codecimg',
+											src: imageRes[`${e.type}_over`],
+										}
+									)
+								);
 							}
-						}
+						)
 					),
 					ht.div(
 						{
@@ -2276,20 +2836,22 @@ class Wapp {
 						ht.img(
 							{
 								'class': 'exitplayimg',
-								src: '../img/discard_over.png',
+								src: imageRes.discard_over,
 							}
 						)
 					),
 					ht.div(
 						{
 							'class': 'embedinfodiv divdiv',
-							onmouseenter: ht.evt('wapp.embedInfo',true,id),
-							onmouseleave: ht.evt('wapp.embedInfo',false,id)
+							onmouseenter: ht.cmd('wapp.embedInfo',true,false,key),
+							onmouseleave: ht.cmd('wapp.embedInfo',false,false,key),
+							onmousedown: ht.cmd('wapp.embedInfo',false,true,key),
+							onmouseup: ht.cmd('wapp.embedInfo',false,false,key),
 						},
 						ht.img(
 							{
 								'class': 'embedinfoimg',
-								src: '../img/showinfo_over.png',
+								src: imageRes.showinfo_over,
 							}
 						)
 					)
@@ -2301,19 +2863,29 @@ class Wapp {
 				vid.onvolumechange = function() {
 					wapp.volumeLevel = vid.volume;
 				};
+				vid.onplay = function() {
+					let ar = vid.videoWidth/vid.videoHeight;
+					let scale = v.item.rotation % 2 ? 1/ar : 1;
+					ut.css('#videoplayback',{ scale : scale});
+				}
 			}
 		}
 		this.reembedded = false;
 		event.stopPropagation();
 	}
 
-	reembed(event,id,ndx) {
+	// redisplay embedded video with specified stream
+	// event <object> mouse event
+	// key <string> item key
+	// vstream <int> video stream index
+	reembed(event,key,vstream) {
 		ut.html('#play','');
 		this.reembedded = true;
-		this.embed(event,id,ndx);
+		this.embed(event,key,vstream);
 	}
 
-	// leave an emedded video
+	// leave an emedded video playback
+	// event <object> mouse event
 	unembed(event) {
 		this.embedded = false;
 		ut.html('#play','');
@@ -2322,8 +2894,11 @@ class Wapp {
 		event.stopPropagation();
 	}
 
-	embedInfo(event, show, id) {
-		let v = this.itemx[id];
+	// show/unshow video info for embedded playback
+	// show <boolean> whether to show video info
+	// key <string> item key
+	embedInfo(show, invert, key) {
+		let v = this.itemx[key];
 		if (show) {
 			v.embedInfo = true;
 			ut.replaceWith('#embedInfo',v.html);
@@ -2332,53 +2907,52 @@ class Wapp {
 			v.embedInfo = false;
 			ut.css('#embedInfo',{display:'none'});
 		}
+		if (invert) {
+			ut.addClass('#videoplayback','inverted');
+		} else {
+			ut.removeClass('#videoplayback','inverted');
+		}
 	}
 
 	// backfill request has completed, re-list/re-sort
+	// data <object> requested data
 	backfilled(data) {
 		if (
-			wapp.list.chanMode
+			this.list.chanMode
 			&&
-			this.itemx[data.cid]
-			&&
-			data.cid === this.itemx[data.cid].item.id
+			this.itemx[data.key]
 		) {
-			this.itemx[data.cid].backfilled = data.count - data.orig;
-			this.itemx[data.cid].redisplay();
-			//this.refreshContent(true,true,0);
+			ut.replaceWith(`#backfillSelect_${data.key}`,ht.div({id: `backfillSelect_${data.key}`},this.rcell(`found: ${data.count - data.orig}`)));
+			this.itemx[data.key].backfilling = false;
+			clearTimeout(this.refreshTime);
+			this.refreshTime = setTimeout(this.refreshContent.bind(this),2500,true,true,0);
 		}
 	}
 
 	// collect value from generic select control
-	genericSelect(id, suffix, field, ndx = -1, subfield = '') {
-		let x = this.itemx[id];
+	// key <string> item key
+	// suffix <string> parent object ('' or 'item')
+	// field <string> object field
+	// ndx <int> field index if field is an array
+	genericSelect(key, suffix, field, ndx = -1,) {
+		let x = this.itemx[key];
 		if (x) {
-			let val = subfield.length ?
-				ndx >=0 ? ut.val(`#${field}Select_${id}_${ndx}_${subfield}`) :
-					ut.val(`#${field}Select_${id}_${subfield}`) :
-				ndx >=0 ? ut.val(`#${field}Select_${id}_${ndx}`) :
-					ut.val(`#${field}Select_${id}`);
+			let val = ndx >=0 ?
+				ut.val(`#${field}Select_${key}_${ndx}`) :
+				ut.val(`#${field}Select_${key}`);
 			if (parseInt(val) == val) val = parseInt(val);
 			if (suffix === 'item') {
 				ndx >= 0 ?
-					subfield.length ?
-						x.item[field][ndx][subfield] = val :
-						x.item[field][ndx]=val :
+					x.item[field][ndx] = val :
 					x.item[field] = val;
-			} else if (suffix === 'meta') {
-				ndx >= 0 ?
-					subfield.length ?
-						x.item.meta[field][ndx][subfield] = val :
-						x.item.meta[field][ndx]=val :
-					x.item.meta[field] = val;
+				x.set(field,x.item[field]);
 			} else {
 				ndx >= 0 ?
-					subfield.length ?
-						x[field][ndx][subfield] = val :
-						x[field][ndx]=val:
+					x[field][ndx] = val:
 					x[field] = val;
+				x.set(field,x[field]);
 			}
-			x.set();
+
 		}
 	}
 
@@ -2392,10 +2966,22 @@ class Wapp {
 
 	// page down the list
 	pageDown() {
-		let maxPage = Math.floor((this.filtered-1)/this.limit);
-		if ((this.showing.length) && (this.page<maxPage)) {
+		let lim = this.limit;
+		if (this.list.chanMode) lim--;
+		let maxPage = Math.floor((this.filtered-1)/lim);
+		if (this.showing.length && this.page < maxPage) {
 			this.page++;
-			this.refreshContent(true,false);
+			if (this.nextResponse.length) {
+				clearTimeout(this.refreshTime);
+				this.clearItems();
+				this.shown = [];
+				this.statusNav('fetching data...');
+				this.response = structuredClone(this.nextResponse);
+				this.lastData.content = 'content';
+				this.load(this.lastData);
+			} else {
+				this.refreshContent(true,false);
+			}
 		}
 	}
 
@@ -2406,14 +2992,17 @@ class Wapp {
 
 	// navigate to the bottom of the list
 	end() {
-		let maxPage = Math.floor((this.filtered-1)/this.limit);
-		if ((this.showing.length) && (this.page!=maxPage)) {
+		let lim = this.limit;
+		if (this.list.chanMode) lim--;
+		let maxPage = Math.floor((this.filtered-1)/lim);
+		if (this.showing.length && this.page !== maxPage) {
 			this.page = maxPage
 			this.refreshContent(true,false);
 		}
 	}
 
 	// capture keyboard events
+	// event <object> mouse event
 	keyDown(event) {
 		if (!this.editing) {
 			switch (event.code) {
@@ -2421,6 +3010,8 @@ class Wapp {
 				case 'ShiftRight': this.shiftPressed = true; break;
 				case 'ControlLeft':
 				case 'ControlRight': this.ctrlPressed = true; break;
+				case 'AltLeft':
+				case 'AltRight': this.altPressed = true; break;
 				case 'ArrowRight': if (this.list.chanMode) this.nextchan(event, this.list.cid); break;
 				case this.cfg.client.blockCode1:
 				case this.cfg.client.blockCode2:
@@ -2487,7 +3078,7 @@ class Wapp {
 					event.preventDefault();
 				break;
 				case 'Space':
-					this.actionAll(event);
+					this.actionall(event);
 					event.preventDefault();
 				break;
 				case 'Home':
@@ -2517,51 +3108,65 @@ class Wapp {
 	}
 
 	// capture key up events
+	// event <object> mouse event
 	keyUp(event) {
 		switch (event.key) {
 			case 'Shift': this.shiftPressed = false; break;
 			case 'Control': this.ctrlPressed = false; break;
+			case 'Alt': this.altPressed = false; break;
 			default: break;
 		}
 	}
 
 	// get edited name
-	nameEdit(id) {
+	// key <string> item key
+	nameEdit(key) {
 		this.editText(false);
-		let v = this.itemx[id];
-		v.name = ut.val(`#nam_${id}`);
+		let v = this.itemx[key];
+		v.name = ut.val(`#nam_${key}`);
 	}
 
 	// go to channel on youtube
-	ytchan(event,id) {
-		let cid = id;
-		if (this.itemx[id].type == 'video') cid = this.itemx[id].item.channel;
-		window.open(`${wapp.cfg.channel.url}/${cid}`,'_blank');
+	// event <object> mouse event
+	// key <string> item key
+	ytchan(event,key) {
+		let x = this.itemx[key];
+		let name = x.type === 'video' ? x.item.channel.name : x.item.name;
+		window.open(`${this.cfg.channel.url}/${name}`,'_blank');
 		event.stopPropagation();
 	}
 
 	// watch a video on youtube
-	views(event,id) {
-		window.open(`${wapp.cfg.video.watchUrl}${id}`,'_blank');
+	// event <object> mouse event
+	// key <string> item key
+	views(event,key) {
+		let name = this.itemx[key].item.name;
+		window.open(`${this.cfg.video.watchUrl}${name}`,'_blank');
 		event.stopPropagation();
 	}
 
 	// get edited query
-	queryEdit(id) {
-		let v = this.itemx[id];
-		v.query = ut.val(`#qry_${id}`);
+	// key <string> item key
+	queryEdit(key) {
+		this.editText(false);
+		let v = this.itemx[key];
+		v.query = ut.val(`#qry_${key}`);
 	}
 
 	// get disallowed text list
-	disallowEdit(id) {
-		let v = this.itemx[id];
-		v.disallow = ut.val(`#dis_${id}`);
+	// key <string> item key
+	disallowEdit(key) {
+		this.editText(false);
+		let v = this.itemx[key];
+		v.disallow = ut.val(`#dis_${key}`);
 	}
 
 	// refresh an item
-	refresh(event,id) {
-		let v = this.itemx[id];
-		if (v !== undefined) this.emit('refresh',{
+	// event <object> mouse event
+	// key <string> item key
+	refresh(event, key) {
+		let v = this.itemx[key];
+		if (v) this.emit('refresh',{
 			type: v.type,
 			id: v.item.id
 		});
@@ -2569,28 +3174,30 @@ class Wapp {
 	}
 
 	// refresh/resort the item list
+	// event <object> mouse event
 	resort(event) {
 		this.setItemControls(true,true);
 	}
 
-	// adjust item display size
-	scale(i) {
+	// calculate or adjust item display size
+	// increment <int> added to number of item rows
+	scale(increment = 0) {
 		let t = this.subtype;
 		let cl = this.itemObject;
-		let dum = new cl({},t.scale);
-		let ch = ut.outerHeight('#content');
-		let sw = dum.padding + dum.margin;
-		let ih = cl.calc_height(t.scale) + 2 * sw;
-		let rows = Math.floor(ch / ih);
-		rows += i;
-		if (rows < 1) rows = 1;
-		let nh = ch / rows;
-		t.scale *= nh /ih;
-		//ut.html('#item_scale',this.subtype.scale.toFixed(2));
-		this.setItemControls(true,false);
+		let orows = t.rows;
+		let oscale = t.scale;
+		if (!t.rows) t.rows = 2;
+		t.rows += increment;
+		if (t.row<1) t.rows = 1;
+		let dum = new cl({},1);
+		let ch = ut.outerHeight(this.content);
+		let ih = cl.calc_height(1) + 2 * (dum.padding + dum.margin);
+		t.scale = ch/ih/t.rows;
+		if (t.rows !== orows || t.scale !== oscale) this.updcfg();
 	}
 
 	// sort in ascending order
+	// event <object> mouse event unused
 	asc(event) {
 		this.subtype.dir = 'DESC';
 		this.updcfg();
@@ -2599,6 +3206,7 @@ class Wapp {
 	}
 
 	// sort in descending order
+	// event <object> mouse event unused
 	desc(event) {
 		this.subtype.dir = 'ASC';
 		this.updcfg();
@@ -2609,40 +3217,51 @@ class Wapp {
 	// scale item display size down to fit one more row.
 	scaledown() {
 		this.scale(1);
+		this.setItemControls(true,false);
 	}
 
 	// scale item display size up to fit one row less
 	scaleup() {
 		this.scale(-1);
+		this.setItemControls(true,false);
 	}
 
 	// show topic category check list
-	showCheckList(event,id) {
-		let g = this.itemx[id];
+	// event <object> mouse event
+	// key <string> item key
+	showCheckList(event,key) {
+		let g = this.itemx[key];
 		g.showCheckList();
 		event.stopPropagation();
 	}
 
 	// check/uncheck a category
-	checkListClick(event,id,c) {
-		let g = this.itemx[id];
-		g.checkListClick(c);
+	// event <object> mouse event
+	// key <string> item key
+	// category <string> category clicked
+	checkListClick(event,key,category) {
+		let g = this.itemx[key];
+		g.checkListClick(category);
 		event.stopPropagation();
 	}
 
 	// thumb enters preview div
-	thumbenter(event,id) {
-		this.itemx[id].thumbenter(event);
+	// key <string> item key
+	thumbenter(key) {
+		this.itemx[key].thumbenter();
 	}
 
 	// thumb leaves preview div
-	thumbleave(event,id) {
-		this.itemx[id].thumbleave(event);
+	// key <string> item key
+	thumbleave(key) {
+		this.itemx[key].thumbleave();
 	}
 
 	// thumb move withing preview div
-	thumbmove(event,id) {
-		this.itemx[id].thumbmove(event);
+	// event <object> mouse event
+	// key <string> item key
+	thumbmove(event,key) {
+		this.itemx[key].thumbmove(event);
 	}
 
 	// client area was resized
@@ -2651,61 +3270,75 @@ class Wapp {
 	}
 
 	// server was stopped
+	// data <object> unused
 	stop(data) {
 		location.reload();
 	}
 
 	// check/uncheck active topic
-	topicActive(id) {
-		let v = this.itemx[id];
-		v.active = ut.prop(`#act_${id}`,'checked');
+	// key <string> item key
+	topicActive(key) {
+		let v = this.itemx[key];
+		v.active = ut.prop(`#act_${key}`,'checked');
 		v.redisplay();
 	}
 
 	// check/uncheck active search
-	searchActive(id) {
-		let v = this.itemx[id];
-		v.active = ut.prop(`#act_${id}`,'checked');
+	// key <string> item key
+	searchActive(key) {
+		let v = this.itemx[key];
+		v.active = ut.prop(`#act_${key}`,'checked');
 		v.redisplay();
 	}
 
 	// check/uncheck proxified search
-	searchProxy(id) {
-		let v = this.itemx[id];
-		v.proxify = ut.prop(`#pxy_${id}`,'checked');
+	// key <string> item key
+	searchProxy(key) {
+		let v = this.itemx[key];
+		v.proxify = ut.prop(`#pxy_${key}`,'checked');
 		v.redisplay();
 	}
 
 	// dermine if video preview generated an error
-	videoPreviewError(event,id) {
-		let v = this.itemx[id];
-		v.videoError = true;
-		v.redisplay();
+	// event <object> mouse event unused
+	// key <string> item key
+	videoPreviewError(event,key,ndx) {
+		let v = this.itemx[key];
+		if (v.refreshedOnError) {
+			this.playstory(event,key);
+		} else {
+			this.refresh(event,key);
+			v.refreshedOnError = true;
+			this.playstory(event,key);
+		}
 	}
 
 	// set background colors of video to rgb
-	bgi(id, rgb) {
-		ut.css(`#div_${id}`,{'background-color':rgb});
+	// key <string> item key
+	// rgb <object> color for bacground
+	bgi(key, rgb) {
+		ut.css(`#div_${key}`,{'background-color':rgb});
 	}
 
-	// set background colors of channel to rgb
+	// set background colors of channel videos to rgb
+	// cid <int> channel id
+	// rgb <object> color for bacground
 	bgc(cid, rgb) {
-		let keys = Object.keys(this.itemx);
-		keys.forEach(k => {
+		Object.keys(this.itemx).forEach(k => {
 			let v = this.itemx[k];
-			if ((v.item.channel && v.item.channel === cid) && (!this.list.chanMode)) {
-				this.bgi(v.item.id,rgb);
+			if ((v.item.cid && v.item.cid === cid) && (!this.list.chanMode)) {
+				this.bgi(v.item.key,rgb);
 			}
 		});
 	}
 
-	// return background colors channel to default
+	// return background colors channel video to default
+	// cid <int> channel id
 	rgb(cid) {
-		let keys = Object.keys(this.itemx);
-		keys.forEach(k => {
+		Object.keys(this.itemx).forEach(k => {
 			let v = this.itemx[k];
-			if (v.item.channel && v.item.channel === cid) {
-				this.bgi(v.item.id,v.rgb);
+			if (v.item.cid && v.item.cid === cid) {
+				this.bgi(v.item.key,v.rgb);
 			}
 		});
 	}

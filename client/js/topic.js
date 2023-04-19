@@ -1,15 +1,15 @@
-// ytzero - client search container class
-// https://github.com/gatecrasher777/ytzero
-// (c) 2021/2 gatecrasher777
-// MIT Licenced
+/* brytfeed - (c) 2023 Gatecrasher777 */
+/* topic client module */
 
-class ytzTopic extends ytzItem {
+// topic item class
+class Topic extends Model {
 
     // topic item constructor
+    // item <object> topic data
+    // scale <double> required size of item
     constructor(item, scale) {
-        super(item,scale);
-        this.type = 'topic';
-        this.categories = wapp.cfg.engine.categories;
+        super('topic', item, scale);
+        this.categories = wapp.cfg.engine.allCategories;
         this.checkShown = false;
         this.old = wapp.cfg.topic.old;
         this.color = {
@@ -22,6 +22,7 @@ class ytzTopic extends ytzItem {
     }
 
     // change name
+    // value <string> new topic name
     set name(value) {
         if (
             this.item.name !== value
@@ -31,11 +32,11 @@ class ytzTopic extends ytzItem {
             value.length <= wapp.cfg.topic.maxNameLength
         ) {
             this.item.name = value;
-            this.set();
+            this.set('name',value);
         }
     }
 
-    // get age since latest
+    // get latest video age
     get age() {
         if (!this.item.latest) return 0;
         return (ut.now()-this.item.latest)/1000;
@@ -43,13 +44,20 @@ class ytzTopic extends ytzItem {
 
     // resize the topic item
     resize() {
-        this.height = ytzTopic.calc_height(this.scale);
+        this.height = Topic.calc_height(this.scale);
     }
 
     // show new videos
     get newVideos() {
         return ht.div(
-            {id:`nvo_${this.item.id}`},
+            {id:`nvo_${this.item.key}`},
+            this.item.newVideos
+        );
+    }
+
+    get downloads() {
+        return ht.div(
+            {id:`dls_${this.item.downloads}`},
             this.item.newVideos
         );
     }
@@ -57,7 +65,7 @@ class ytzTopic extends ytzItem {
     // show total videos
     get videoCount() {
         return ht.div(
-            {id:`vco_${this.item.id}`},
+            {id:`vco_${this.item.key}`},
             this.item.videoCount
         );
     }
@@ -65,7 +73,7 @@ class ytzTopic extends ytzItem {
     // show total channels
     get channelCount() {
         return ht.div(
-            {id:`cco_${this.item.id}`},
+            {id:`cco_${this.item.key}`},
             this.item.channelCount
         );
     }
@@ -73,7 +81,7 @@ class ytzTopic extends ytzItem {
     // show total searches
     get searchCount() {
         return ht.div(
-            {id:`sco_${this.item.id}`},
+            {id:`sco_${this.item.key}`},
             this.item.searchCount
         );
     }
@@ -88,6 +96,8 @@ class ytzTopic extends ytzItem {
                 },
                 wapp.lcell('new:'),
                 wapp.lcell(this.newVideos),
+                wapp.rcell(this.downloads),
+                wapp.rcell('dls: '),
                 wapp.rcell(this.videoCount),
                 wapp.rcell('videos: '),
             ),
@@ -107,44 +117,48 @@ class ytzTopic extends ytzItem {
     // show category check list
     showCheckList() {
         if (this.checkShown) {
-            ut.css(`#checkList_${this.item.id}`,{display:'none'});
+            document.onselectstart = null;
+            ut.css(`#checkList_${this.item.key}`,{display:'none'});
             this.checkShown = false;
-            this.redisplay();
+            this.set('allowCategory',this.item.allowCategory);
         } else {
-            ut.css(`#checkList_${this.item.id}`,{display:'block'});
+            document.onselectstart = () => { return wapp.selectOK; }
+            ut.css(`#checkList_${this.item.key}`,{display:'block'});
             this.checkShown = true;
         }
     }
 
     // category checked
-    checkListClick(c) {
-        let f = this.item.meta.allowCategory.indexOf(c);
-        if (f>=0) {
-            this.item.meta.allowCategory.splice(f,1);
+    // category <string> category string
+    checkListClick(category) {
+        let a = this.item.allowCategory.split(',');
+        let f = a.indexOf(category);
+        if (f >= 0) {
+            a.splice(f,1);
         } else {
-            this.item.meta.allowCategory.push(c);
+            a.push(category);
         }
-        this.set();
+        this.item.allowCategory = a.join(',');
     }
 
     // show allowed category text
     get allowed() {
-        if (this.item.meta.allowCategory) return ht.concat(
+        if (this.item.allowCategory) return ht.concat(
             ht.button(
                 {
-                    id: `autoSelect_${this.item.id}`,
+                    id: `autoSelect_${this.item.key}`,
                     class: 'autoselect',
-                    onclick: ht.evt('wapp.showCheckList',this.item.id),
+                    onclick: ht.evt('wapp.showCheckList',this.item.key),
                     title: 'click to select categories to allow in search results',
                     style: this.genStyle('category',{
                         'border-radius': `${this.radius}px`
                     })
                 },
-                this.item.meta.allowCategory.join(', ')
+                this.item.allowCategory
             ),
             ht.div(
                 {
-                    id : `checkList_${this.item.id}`,
+                    id : `checkList_${this.item.key}`,
                     class: 'checklist'
                 },
                 ht.forEach(
@@ -152,13 +166,13 @@ class ytzTopic extends ytzItem {
                     (e,i,a) => {
                         let attr = {
                             type: 'checkbox',
-                            id: `checkBox_${this.item.id}_${i}`,
-                            onclick: ht.evt('wapp.checkListClick',this.item.id,e)
+                            id: `checkBox_${this.item.key}_${i}`,
+                            onclick: ht.evt('wapp.checkListClick',this.item.key,e)
                         };
-                        if (this.item.meta.allowCategory.includes(e)) attr.checked='checked';
+                        if (this.item.allowCategory.includes(e)) attr.checked='checked';
                         return ht.label(
                             {
-                                for: `checkBox_${this.item.id}_${i}`,
+                                for: `checkBox_${this.item.key}_${i}`,
                                 class: 'checklistbox'
                             },
                             ht.input(attr),
@@ -171,23 +185,25 @@ class ytzTopic extends ytzItem {
     }
 
     // save disallowed text
+    // value <string> text value
     set disallow(value) {
-        this.item.meta.disallowText = value;
-        this.set();
+        this.item.disallowText = value;
+        this.set('disallowText',value);
     }
 
     // show disallowed text
     get disallow() {
         return ht.textarea(
             {
-                id: `dis_${this.item.id}`,
+                id: `dis_${this.item.key}`,
                 class: 'disallowed',
-                onblur: ht.cmd('wapp.disallowEdit',this.item.id),
+                onfocus: ht.cmd('wapp.editText',true),
+                onblur: ht.cmd('wapp.disallowEdit',this.item.key),
                 title: 'discard videos with this comma separated list of words or phrases',
                 placeholder: 'enter words/phrases that will disallow videos if they appear in their title, description or keywords',
                 style: this.genStyle('ban')
             },
-            this.item.meta.disallowText
+            this.item.disallowText
         );
     }
 
@@ -195,8 +211,8 @@ class ytzTopic extends ytzItem {
     get minDur() {
         return ht.select(
             {
-                id: `minDurSelect_${this.item.id}`,
-                onchange: ht.cmd('wapp.genericSelect',this.item.id,'meta','minDur'),
+                id: `minDurSelect_${this.item.key}`,
+                onchange: ht.cmd('wapp.genericSelect',this.item.key,'item','minDur'),
                 title: 'specify minimum allowed video duration for this topic',
                 style: this.genStyle('control',{
                     'border-radius': `${this.radius}px`
@@ -206,7 +222,7 @@ class ytzTopic extends ytzItem {
                 this.durations,
                 e => {
                     let o = { value: e.toString() };
-                    if (e == this.item.meta.minDur) o.selected = 'selected';
+                    if (e == this.item.minDur) o.selected = 'selected';
                     return ht.option(o,
                         ht.ifElse(
                             e,
@@ -223,8 +239,8 @@ class ytzTopic extends ytzItem {
     get maxDur() {
         return ht.select(
             {
-                id: `maxDurSelect_${this.item.id}`,
-                onchange: ht.cmd('wapp.genericSelect',this.item.id,'meta','maxDur'),
+                id: `maxDurSelect_${this.item.key}`,
+                onchange: ht.cmd('wapp.genericSelect',this.item.key,'item','maxDur'),
                 title: 'specify maximum allowed video duration for this topic',
                 style: this.genStyle('control',{
                     'border-radius': `${this.radius}px`
@@ -234,7 +250,7 @@ class ytzTopic extends ytzItem {
                 this.durations,
                 e => {
                     let o = { value: e.toString() };
-                    if (e == this.item.meta.maxDur) o.selected = 'selected';
+                    if (e == this.item.maxDur) o.selected = 'selected';
                     return ht.option(o,
                         ht.ifElse(
                             e,
@@ -247,21 +263,22 @@ class ytzTopic extends ytzItem {
         );
     }
 
-    // change active setting
+    // change active updates setting
+    // value <boolean> updates value
     set active(value) {
-        this.item.status = (value) ? 'ON': 'OFF';
-        this.set();
+        this.item.updates = value;
+        this.set('updates',value);
     }
 
-    // show active setting
+    // show active updates setting
     get active() {
         let attr =  {
-            id: `act_${this.item.id}`,
+            id: `act_${this.item.key}`,
             type: 'checkbox',
-            onclick: ht.cmd('wapp.topicActive',this.item.id),
+            onclick: ht.cmd('wapp.topicActive',this.item.key),
             title: `Allow/Disallow automatic search/channel/video updates for ${this.item.name}`
         };
-        if (this.item.status === 'ON') attr.checked = 'checked';
+        if (this.item.updates) attr.checked = 'checked';
         return ht.input(attr);
     }
 
@@ -278,7 +295,7 @@ class ytzTopic extends ytzItem {
                 wapp.lcell('max:',wapp.cfg.topic.maxDurLabel),
                 wapp.lcell(this.maxDur,wapp.cfg.topic.maxDurField),
                 wapp.rcell(this.active),
-                wapp.rcell(`${this.item.status}:`)
+                wapp.rcell(`act:`)
             ),
             ht.div(
                 {
@@ -324,15 +341,20 @@ class ytzTopic extends ytzItem {
 
     // refresh updateble topic data
     refresh() {
-        super.refresh();
-        ut.html(`#nvo_${this.item.id}`,this.newVideos);
-        ut.html(`#vco_${this.item.id}`,this.videoCount);
-        ut.html(`#cco_${this.item.id}`,this.channelCount);
-        ut.html(`#sco_${this.item.id}`,this.searchCount);
-        ut.html(`#lst_${this.item.id}`,ut.tsAge(this.item.latest));
+        ut.attr(`#div_${this.item.key}`,this.attrib);
+        ut.html(`#sts_${this.item.key}`,this.statusStr);
+        ut.attr(`#sts_${this.item.key}`,{title: this.reasonStr});
+        ut.html(`#upd_${this.item.key}`,this.updatedStr);
+        ut.html(`#nvo_${this.item.key}`,this.newVideos);
+        ut.html(`#dls_${this.item.key}`,this.downloads);
+        ut.html(`#vco_${this.item.key}`,this.videoCount);
+        ut.html(`#cco_${this.item.key}`,this.channelCount);
+        ut.html(`#sco_${this.item.key}`,this.searchCount);
+        ut.html(`#lst_${this.item.key}`,ut.tsAge(this.item.latest));
     }
 
     // determine height of topic item
+    // scale <double> scale to apply
     static calc_height(scale) {
         let h = wapp.cfg.topic;
         return wapp.cfg.item.width * scale * (
