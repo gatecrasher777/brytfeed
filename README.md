@@ -1,4 +1,4 @@
-# brytfeed (work-in-progress)
+# brytfeed (current work-in-progress, wait for release)
 
 A zero-day, real-time YouTube feed with a feature-rich, highly customizable browser GUI.
 
